@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu, shell } from 'electron';
+import { app, BrowserWindow, dialog, Menu, shell, nativeImage } from 'electron';
 import * as path from 'path';
 import { setupIpcHandlers } from './ipc';
 import { createMenu } from './menu';
@@ -7,13 +7,35 @@ let mainWindow: BrowserWindow | null = null;
 
 const isDev = !app.isPackaged;
 
+// Get the correct icon path for both dev and packaged modes
+function getIconPath(): string {
+  if (isDev) {
+    return path.join(__dirname, '../../assets/icon.ico');
+  }
+  // In packaged app, assets are in resources/assets
+  return path.join(process.resourcesPath, 'assets/icon.ico');
+}
+
 function createWindow(): void {
+  // Create native image for icon
+  const iconPath = getIconPath();
+  let appIcon;
+  try {
+    appIcon = nativeImage.createFromPath(iconPath);
+    if (appIcon.isEmpty()) {
+      console.warn('Icon image is empty, using default');
+    }
+  } catch (err) {
+    console.error('Failed to load icon:', err);
+  }
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 600,
     title: 'Drasill Cloud',
+    icon: appIcon || iconPath,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
