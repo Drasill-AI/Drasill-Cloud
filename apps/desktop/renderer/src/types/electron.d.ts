@@ -1,4 +1,15 @@
-import type { DirEntry, FileStat, FileReadResult, ChatRequest, ChatStreamChunk, PersistedState } from '@drasill/shared';
+import type { 
+  DirEntry, 
+  FileStat, 
+  FileReadResult, 
+  ChatRequest, 
+  ChatStreamChunk, 
+  PersistedState,
+  Equipment,
+  MaintenanceLog,
+  FailureEvent,
+  EquipmentAnalytics,
+} from '@drasill/shared';
 
 interface ElectronAPI {
   selectWorkspace: () => Promise<string | null>;
@@ -17,6 +28,7 @@ interface ElectronAPI {
   setApiKey: (apiKey: string) => Promise<boolean>;
   getApiKey: () => Promise<{ hasKey: boolean; maskedKey: string | null }>;
   cancelChat: () => Promise<void>;
+  onChatToolExecuted: (callback: (data: { action: string; data: unknown }) => void) => () => void;
   // RAG API
   indexWorkspace: (workspacePath: string) => Promise<{ success: boolean; chunksIndexed: number; error?: string }>;
   onRagIndexProgress: (callback: (data: { current: number; total: number; fileName: string; percentage: number }) => void) => () => void;
@@ -26,6 +38,24 @@ interface ElectronAPI {
   // State persistence
   saveState: (state: PersistedState) => Promise<void>;
   loadState: () => Promise<PersistedState>;
+  // Database
+  initDatabase: () => Promise<{ success: boolean; error?: string }>;
+  // Equipment API
+  getAllEquipment: () => Promise<Equipment[]>;
+  getEquipment: (id: string) => Promise<Equipment | null>;
+  addEquipment: (equipment: Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Equipment>;
+  updateEquipment: (id: string, equipment: Partial<Equipment>) => Promise<Equipment | null>;
+  deleteEquipment: (id: string) => Promise<boolean>;
+  detectEquipmentFromPath: (filePath: string) => Promise<Equipment | null>;
+  // Maintenance Logs API
+  addMaintenanceLog: (log: Omit<MaintenanceLog, 'id' | 'createdAt'>) => Promise<MaintenanceLog>;
+  getMaintenanceLogs: (limit?: number) => Promise<MaintenanceLog[]>;
+  getMaintenanceLogsByEquipment: (equipmentId: string, limit?: number) => Promise<MaintenanceLog[]>;
+  // Failure Events API
+  addFailureEvent: (event: Omit<FailureEvent, 'id' | 'createdAt'>) => Promise<FailureEvent>;
+  getFailureEvents: (equipmentId?: string, limit?: number) => Promise<FailureEvent[]>;
+  // Analytics API
+  getEquipmentAnalytics: (equipmentId?: string) => Promise<EquipmentAnalytics[]>;
 }
 
 declare global {

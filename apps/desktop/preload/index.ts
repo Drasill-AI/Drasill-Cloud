@@ -1,5 +1,17 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import { IPC_CHANNELS, DirEntry, FileStat, FileReadResult, ChatRequest, ChatStreamChunk, PersistedState } from '@drasill/shared';
+import { 
+  IPC_CHANNELS, 
+  DirEntry, 
+  FileStat, 
+  FileReadResult, 
+  ChatRequest, 
+  ChatStreamChunk, 
+  PersistedState,
+  Equipment,
+  MaintenanceLog,
+  FailureEvent,
+  EquipmentAnalytics,
+} from '@drasill/shared';
 
 /**
  * API exposed to the renderer process via contextBridge
@@ -117,6 +129,15 @@ const api = {
     return ipcRenderer.invoke(IPC_CHANNELS.CHAT_CANCEL);
   },
 
+  /**
+   * Subscribe to chat tool execution events
+   */
+  onChatToolExecuted: (callback: (data: { action: string; data: unknown }) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, data: { action: string; data: unknown }) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.CHAT_TOOL_EXECUTED, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.CHAT_TOOL_EXECUTED, handler);
+  },
+
   // RAG API
   /**
    * Index workspace for RAG
@@ -170,6 +191,113 @@ const api = {
    */
   loadState: (): Promise<PersistedState> => {
     return ipcRenderer.invoke(IPC_CHANNELS.STATE_LOAD);
+  },
+
+  // ==========================================
+  // Database & Equipment API
+  // ==========================================
+
+  /**
+   * Initialize the database
+   */
+  initDatabase: (): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.DB_INIT);
+  },
+
+  /**
+   * Get all equipment
+   */
+  getAllEquipment: (): Promise<Equipment[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.EQUIPMENT_GET_ALL);
+  },
+
+  /**
+   * Get single equipment by ID
+   */
+  getEquipment: (id: string): Promise<Equipment | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.EQUIPMENT_GET, id);
+  },
+
+  /**
+   * Add new equipment
+   */
+  addEquipment: (equipment: Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Equipment> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.EQUIPMENT_ADD, equipment);
+  },
+
+  /**
+   * Update equipment
+   */
+  updateEquipment: (id: string, equipment: Partial<Equipment>): Promise<Equipment | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.EQUIPMENT_UPDATE, id, equipment);
+  },
+
+  /**
+   * Delete equipment
+   */
+  deleteEquipment: (id: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.EQUIPMENT_DELETE, id);
+  },
+
+  /**
+   * Detect equipment from file path
+   */
+  detectEquipmentFromPath: (filePath: string): Promise<Equipment | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.EQUIPMENT_DETECT_FROM_PATH, filePath);
+  },
+
+  // ==========================================
+  // Maintenance Logs API
+  // ==========================================
+
+  /**
+   * Add maintenance log
+   */
+  addMaintenanceLog: (log: Omit<MaintenanceLog, 'id' | 'createdAt'>): Promise<MaintenanceLog> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LOGS_ADD, log);
+  },
+
+  /**
+   * Get all maintenance logs
+   */
+  getMaintenanceLogs: (limit?: number): Promise<MaintenanceLog[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LOGS_GET, limit);
+  },
+
+  /**
+   * Get maintenance logs for specific equipment
+   */
+  getMaintenanceLogsByEquipment: (equipmentId: string, limit?: number): Promise<MaintenanceLog[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LOGS_GET_BY_EQUIPMENT, equipmentId, limit);
+  },
+
+  // ==========================================
+  // Failure Events API
+  // ==========================================
+
+  /**
+   * Add failure event
+   */
+  addFailureEvent: (event: Omit<FailureEvent, 'id' | 'createdAt'>): Promise<FailureEvent> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FAILURE_ADD, event);
+  },
+
+  /**
+   * Get failure events
+   */
+  getFailureEvents: (equipmentId?: string, limit?: number): Promise<FailureEvent[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FAILURE_GET, equipmentId, limit);
+  },
+
+  // ==========================================
+  // Analytics API
+  // ==========================================
+
+  /**
+   * Get equipment analytics (MTBF, MTTR, availability)
+   */
+  getEquipmentAnalytics: (equipmentId?: string): Promise<EquipmentAnalytics[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET, equipmentId);
   },
 };
 

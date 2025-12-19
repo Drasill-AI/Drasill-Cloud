@@ -105,6 +105,7 @@ export const IPC_CHANNELS = {
   CHAT_SET_API_KEY: 'chat-set-api-key',
   CHAT_GET_API_KEY: 'chat-get-api-key',
   CHAT_CANCEL: 'chat-cancel',
+  CHAT_TOOL_EXECUTED: 'chat-tool-executed',
   // RAG
   RAG_INDEX_WORKSPACE: 'rag-index-workspace',
   RAG_INDEX_PROGRESS: 'rag-index-progress',
@@ -115,6 +116,24 @@ export const IPC_CHANNELS = {
   // State persistence
   STATE_SAVE: 'state-save',
   STATE_LOAD: 'state-load',
+  // Equipment Management
+  EQUIPMENT_GET_ALL: 'equipment-get-all',
+  EQUIPMENT_GET: 'equipment-get',
+  EQUIPMENT_ADD: 'equipment-add',
+  EQUIPMENT_UPDATE: 'equipment-update',
+  EQUIPMENT_DELETE: 'equipment-delete',
+  EQUIPMENT_DETECT_FROM_PATH: 'equipment-detect-from-path',
+  // Maintenance Logs
+  LOGS_ADD: 'logs-add',
+  LOGS_GET: 'logs-get',
+  LOGS_GET_BY_EQUIPMENT: 'logs-get-by-equipment',
+  // Failure Events
+  FAILURE_ADD: 'failure-add',
+  FAILURE_GET: 'failure-get',
+  // Analytics
+  ANALYTICS_GET: 'analytics-get',
+  // Database
+  DB_INIT: 'db-init',
 } as const;
 
 /**
@@ -308,4 +327,105 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => fn(...args), delay);
   };
+}
+
+// ==========================================
+// Equipment & Maintenance Log Types
+// ==========================================
+
+/**
+ * Equipment record
+ */
+export interface Equipment {
+  id?: string;
+  name: string;
+  make: string;
+  model: string;
+  serialNumber?: string | null;
+  installDate?: string | null;
+  location?: string | null;
+  status?: 'operational' | 'maintenance' | 'down' | 'retired';
+  hourlyCost?: number;
+  manualPath?: string | null;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Maintenance log entry
+ */
+export interface MaintenanceLog {
+  id?: string;
+  equipmentId: string;
+  type: 'preventive' | 'corrective' | 'emergency' | 'inspection';
+  startedAt: string;
+  completedAt?: string | null;
+  durationMinutes?: number | null;
+  technician?: string | null;
+  partsUsed?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+}
+
+/**
+ * Failure event record
+ */
+export interface FailureEvent {
+  id?: string;
+  equipmentId: string;
+  occurredAt: string;
+  resolvedAt?: string | null;
+  rootCause?: string | null;
+  maintenanceLogId?: string | null;
+  createdAt?: string;
+}
+
+/**
+ * Equipment analytics data
+ */
+export interface EquipmentAnalytics {
+  equipmentId: string;
+  mtbf: number | null; // Mean Time Between Failures (hours)
+  mttr: number | null; // Mean Time To Repair (hours)
+  availability: number | null; // Percentage (0-100)
+  totalFailures: number;
+  totalMaintenanceLogs: number;
+  lastMaintenanceDate: string | null;
+  lastMaintenanceType: string | null;
+  predictedNextMaintenance: string | null;
+  healthScore?: number; // 0-100 (computed on frontend)
+}
+
+/**
+ * Log entry form data
+ */
+export interface LogEntryFormData {
+  equipmentId: string;
+  type: MaintenanceLog['type'];
+  startedAt: string;
+  completedAt?: string | null;
+  durationMinutes?: number | null;
+  technician?: string | null;
+  partsUsed?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Failure event form data
+ */
+export interface FailureFormData {
+  equipmentId: string;
+  occurredAt: string;
+  resolvedAt?: string | null;
+  rootCause?: string | null;
+}
+
+/**
+ * Bottom panel state for persistence
+ */
+export interface BottomPanelState {
+  isOpen: boolean;
+  height: number;
+  activeTab: 'logs' | 'analytics';
 }

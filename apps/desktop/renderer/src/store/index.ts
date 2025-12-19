@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Tab, TreeNode, getFileType, ChatMessage, FileContext, PersistedState } from '@drasill/shared';
+import { Tab, TreeNode, getFileType, ChatMessage, FileContext, PersistedState, Equipment, BottomPanelState } from '@drasill/shared';
 
 interface ToastMessage {
   id: string;
@@ -39,6 +39,17 @@ interface AppState {
   // Tab view states (for Monaco)
   tabViewStates: Map<string, unknown>;
 
+  // Equipment & Logs
+  equipment: Equipment[];
+  selectedEquipmentId: string | null;
+  detectedEquipment: Equipment | null;
+  isLogModalOpen: boolean;
+  isEquipmentModalOpen: boolean;
+  logsRefreshTrigger: number;
+
+  // Bottom Panel
+  bottomPanelState: BottomPanelState;
+
   // Actions
   openWorkspace: () => Promise<void>;
   setWorkspacePath: (path: string | null) => void;
@@ -73,6 +84,19 @@ interface AppState {
   savePersistedState: () => Promise<void>;
   loadPersistedState: () => Promise<void>;
   restoreWorkspace: (path: string) => Promise<void>;
+
+  // Equipment actions
+  loadEquipment: () => Promise<void>;
+  setSelectedEquipment: (id: string | null) => void;
+  detectEquipmentFromFile: (path: string) => Promise<void>;
+  setLogModalOpen: (open: boolean) => void;
+  setEquipmentModalOpen: (open: boolean) => void;
+  refreshLogs: () => void;
+
+  // Bottom panel actions
+  setBottomPanelOpen: (open: boolean) => void;
+  setBottomPanelHeight: (height: number) => void;
+  toggleBottomPanel: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -98,6 +122,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   isIndexing: false,
   indexingProgress: null,
   ragChunksCount: 0,
+
+  // Equipment & Logs state
+  equipment: [],
+  selectedEquipmentId: null,
+  detectedEquipment: null,
+  isLogModalOpen: false,
+  isEquipmentModalOpen: false,
+  logsRefreshTrigger: 0,
+
+  // Bottom panel state
+  bottomPanelState: {
+    isOpen: false,
+    height: 200,
+    activeTab: 'logs',
+  },
 
   // Actions
   openWorkspace: async () => {
@@ -178,7 +217,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   openFile: async (path: string, name: string) => {
-    const { tabs, fileContents, loadingFiles } = get();
+    const { tabs, loadingFiles } = get();
 
     // Check if already open
     const existingTab = tabs.find((t) => t.path === path);
@@ -560,9 +599,88 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast('error', `Failed to restore workspace: ${error}`);
     }
   },
+
+  // Equipment actions
+  loadEquipment: async () => {
+    try {
+      const equipmentList = await window.electronAPI.getAllEquipment();
+      set({ equipment: equipmentList });
+    } catch (error) {
+      get().showToast('error', 'Failed to load equipment');
+    }
+  },
+
+  setSelectedEquipment: (id: string | null) => {
+    set({ selectedEquipmentId: id });
+  },
+
+  detectEquipmentFromFile: async (path: string) => {
+    try {
+      const detected = await window.electronAPI.detectEquipmentFromPath(path);
+      set({ detectedEquipment: detected });
+      // Auto-select if no equipment currently selected
+      if (detected && !get().selectedEquipmentId) {
+        set({ selectedEquipmentId: detected.id ?? null });
+      }
+    } catch {
+      // Silently fail - detection is optional
+    }
+  },
+
+  setLogModalOpen: (open: boolean) => {
+    set({ isLogModalOpen: open });
+  },
+
+  setEquipmentModalOpen: (open: boolean) => {
+    set({ isEquipmentModalOpen: open });
+  },
+
+  refreshLogs: () => {
+    set((state) => ({ logsRefreshTrigger: state.logsRefreshTrigger + 1 }));
+  },
+
+  // Bottom panel actions
+  setBottomPanelOpen: (open: boolean) => {
+    set((state) => ({
+      bottomPanelState: { ...state.bottomPanelState, isOpen: open },
+    }));
+    get().savePersistedState();
+  },
+
+  setBottomPanelHeight: (height: number) => {
+    set((state) => ({
+      bottomPanelState: { ...state.bottomPanelState, height },
+    }));
+    get().savePersistedState();
+  },
+
+  toggleBottomPanel: () => {
+    set((state) => ({
+      bottomPanelState: { ...state.bottomPanelState, isOpen: !state.bottomPanelState.isOpen },
+    }));
+    get().savePersistedState();
+  },
 }));
 
 // Initialize on store creation
 useAppStore.getState().checkApiKey();
 useAppStore.getState().checkRagStatus();
 useAppStore.getState().loadPersistedState();
+
+// Initialize database and load equipment
+window.electronAPI.initDatabase().then(() => {
+  useAppStore.getState().loadEquipment();
+});
+
+// Listen for chat tool executions to refresh data
+window.electronAPI.onChatToolExecuted((data) => {
+  console.log('Chat tool executed:', data.action);
+  
+  if (data.action === 'maintenance_log_created' || data.action === 'failure_event_recorded') {
+    useAppStore.getState().refreshLogs();
+  }
+  
+  if (data.action === 'equipment_status_updated') {
+    useAppStore.getState().loadEquipment();
+  }
+});

@@ -22,6 +22,7 @@
   "dependencies": {
     "@drasill/shared": "*",
     "@electron/rebuild": "^4.0.2",
+    "better-sqlite3": "^12.5.0",
     "electron-store": "^8.2.0",
     "keytar": "^7.9.0",
     "mammoth": "^1.11.0",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@monaco-editor/react": "^4.6.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
@@ -75,7 +77,10 @@
       "installerHeaderIcon": "assets/icon.ico"
     },
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "assets/icon.ico",
       "requestedExecutionLevel": "asInvoker"
     },

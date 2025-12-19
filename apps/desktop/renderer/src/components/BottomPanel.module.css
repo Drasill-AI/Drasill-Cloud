@@ -1,0 +1,419 @@
+/* Bottom Panel - VS Code Terminal Style */
+.bottomPanelContainer {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-color);
+  background: var(--panel-glass);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  transition: height 0.2s ease;
+  overflow: hidden;
+}
+
+.bottomPanelContainer.collapsed {
+  height: 32px !important;
+}
+
+.resizeHandleHorizontal {
+  height: 4px;
+  background-color: transparent;
+  cursor: ns-resize;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+  position: relative;
+  z-index: 20;
+}
+
+.resizeHandleHorizontal:hover {
+  background-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+  align-items: flex-end;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+
+.tab svg {
+  width: 14px;
+  height: 14px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 4px;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.iconButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.iconButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Logs View */
+.logsView {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.logsToolbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.1);
+  align-items: center;
+}
+
+.equipmentSelect {
+  flex: 1;
+  max-width: 300px;
+  padding: 6px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.equipmentSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
+}
+
+.equipmentSelect option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.addButton:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.addButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.logsList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.logEntry {
+  display: grid;
+  grid-template-columns: 100px 80px 1fr 120px auto;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.logEntry:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.logDate {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.logType {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.logType.preventive {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
+
+.logType.corrective {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.logType.inspection {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+.logType.calibration {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+}
+
+.logType.other {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+}
+
+.logDescription {
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logPerformedBy {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.logEquipment {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px;
+}
+
+.emptyState svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.emptyState p {
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Analytics View */
+.analyticsView {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.analyticsToolbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.1);
+  align-items: center;
+}
+
+.analyticsGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.metricCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.metricCard:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.metricHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.metricName {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.healthBadge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.healthBadge.good {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
+
+.healthBadge.warning {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.healthBadge.critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.metricValues {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.metricItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.metricItem.full {
+  grid-column: span 2;
+}
+
+.metricLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.metricValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.metricValue.accent {
+  color: var(--accent);
+}
+
+.metricUnit {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.prediction {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  font-size: 11px;
+}
+
+.predictionLabel {
+  color: var(--text-muted);
+}
+
+.predictionValue {
+  color: var(--accent);
+  font-weight: 500;
+}

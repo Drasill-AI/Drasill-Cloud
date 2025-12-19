@@ -3,6 +3,7 @@ import { BrowserWindow } from 'electron';
 import { ChatRequest, IPC_CHANNELS, FileContext } from '@drasill/shared';
 import { getRAGContext, getIndexingStatus } from './rag';
 import * as keychain from './keychain';
+import { CHAT_TOOLS, executeTool, buildEquipmentContext } from './chatTools';
 
 let openai: OpenAI | null = null;
 let abortController: AbortController | null = null;
@@ -48,16 +49,23 @@ export async function hasApiKey(): Promise<boolean> {
  * Build the system prompt with optional file context and RAG context
  */
 async function buildSystemPrompt(context?: FileContext, userQuery?: string): Promise<string> {
-  let systemPrompt = `You are Drasill Assistant, an AI helper for equipment documentation. You help users understand technical documentation, manuals, specifications, and other equipment-related files.
+  let systemPrompt = `You are Lonnie, an AI assistant for Drasill Cloud - an equipment documentation and maintenance management system.
 
 Your capabilities:
 - Explain technical concepts in documentation
 - Summarize long documents
 - Answer questions about equipment specifications
 - Help find specific information in documents
-- Provide context and clarification
+- Create maintenance logs and update equipment status via function calls
+- Provide analytics on equipment performance (MTBF, MTTR, availability)
 
-Be concise, accurate, and helpful. When referencing information from provided context, cite specific sources or file names.`;
+When users want to create logs or update equipment, use the available tools. For status updates, always ask for confirmation first by calling the tool with confirmed=false.
+
+Be concise, accurate, and helpful. When referencing information from provided context, cite specific sources or file names. Summarize actions you take.`;
+
+  // Add equipment context
+  const equipmentContext = buildEquipmentContext();
+  systemPrompt += `\n\n--- EQUIPMENT DATABASE ---\n${equipmentContext}\n--- END EQUIPMENT DATABASE ---`;
 
   // Add RAG context if available
   const ragStatus = getIndexingStatus();
@@ -109,7 +117,7 @@ export function cancelStream(): void {
 }
 
 /**
- * Send a chat message with streaming response
+ * Send a chat message with streaming response and tool support
  */
 export async function sendChatMessage(
   window: BrowserWindow,
@@ -142,27 +150,85 @@ export async function sendChatMessage(
       { role: 'user', content: request.message },
     ];
 
-    // Create streaming completion
-    const stream = await openai!.chat.completions.create(
+    // First call - may return tool calls
+    let response = await openai!.chat.completions.create(
       {
         model: 'gpt-4o-mini',
         messages,
-        stream: true,
+        tools: CHAT_TOOLS,
+        tool_choice: 'auto',
         max_tokens: 2048,
         temperature: 0.7,
       },
       { signal: abortController.signal }
     );
 
-    // Stream chunks to renderer
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content || '';
-      if (delta) {
+    let assistantMessage = response.choices[0].message;
+    
+    // Handle tool calls iteratively (max 5 iterations to prevent infinite loops)
+    let iterations = 0;
+    while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && iterations < 5) {
+      iterations++;
+      
+      // Add assistant message with tool calls to conversation
+      messages.push(assistantMessage);
+      
+      // Execute each tool call
+      for (const toolCall of assistantMessage.tool_calls) {
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(toolCall.function.arguments);
+        } catch (e) {
+          console.error('Failed to parse tool arguments:', e);
+        }
+        
+        const result = executeTool(toolCall.function.name, args);
+        
+        // Notify renderer if action was taken
+        if (result.actionTaken) {
+          window.webContents.send('chat-tool-executed', {
+            action: result.actionTaken,
+            data: result.data,
+          });
+        }
+        
+        // Add tool result to messages
+        messages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(result),
+        });
+      }
+      
+      // Get next response
+      response = await openai!.chat.completions.create(
+        {
+          model: 'gpt-4o-mini',
+          messages,
+          tools: CHAT_TOOLS,
+          tool_choice: 'auto',
+          max_tokens: 2048,
+          temperature: 0.7,
+        },
+        { signal: abortController.signal }
+      );
+      
+      assistantMessage = response.choices[0].message;
+    }
+
+    // Stream the final text response
+    if (assistantMessage.content) {
+      // Send as chunks for consistency with streaming UI
+      const content = assistantMessage.content;
+      const chunkSize = 20;
+      for (let i = 0; i < content.length; i += chunkSize) {
         window.webContents.send(IPC_CHANNELS.CHAT_STREAM_CHUNK, {
           id: messageId,
-          delta,
+          delta: content.slice(i, i + chunkSize),
           done: false,
         });
+        // Small delay for smooth streaming effect
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
 

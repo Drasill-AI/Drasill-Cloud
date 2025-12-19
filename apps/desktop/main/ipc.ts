@@ -2,9 +2,36 @@ import { ipcMain, dialog, BrowserWindow } from 'electron';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import Store from 'electron-store';
-import { IPC_CHANNELS, DirEntry, FileStat, FileReadResult, shouldIgnore, getExtension, BINARY_EXTENSIONS, ChatRequest, PersistedState } from '@drasill/shared';
+import { 
+  IPC_CHANNELS, 
+  DirEntry, 
+  FileStat, 
+  FileReadResult, 
+  shouldIgnore, 
+  getExtension, 
+  BINARY_EXTENSIONS, 
+  ChatRequest, 
+  PersistedState,
+} from '@drasill/shared';
 import { sendChatMessage, setApiKey, getApiKey, hasApiKey, cancelStream } from './chat';
 import { indexWorkspace, searchRAG, getIndexingStatus, clearVectorStore, resetOpenAI } from './rag';
+import {
+  getDatabase,
+  createEquipment,
+  updateEquipment,
+  deleteEquipment,
+  getEquipment,
+  getAllEquipment,
+  createMaintenanceLog,
+  getMaintenanceLogsForEquipment,
+  getAllMaintenanceLogs,
+  createFailureEvent,
+  getFailureEventsForEquipment,
+  calculateEquipmentAnalytics,
+  Equipment,
+  MaintenanceLog,
+  FailureEvent,
+} from './database';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit for reading files
 
@@ -212,5 +239,125 @@ export function setupIpcHandlers(): void {
   // State: Load persisted state
   ipcMain.handle(IPC_CHANNELS.STATE_LOAD, async (): Promise<PersistedState> => {
     return stateStore.get('appState');
+  });
+
+  // ==========================================
+  // Equipment Management
+  // ==========================================
+
+  // Initialize database
+  ipcMain.handle(IPC_CHANNELS.DB_INIT, async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      getDatabase(); // Initialize by getting the database instance
+      return { success: true };
+    } catch (error) {
+      console.error('Database init error:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get all equipment
+  ipcMain.handle(IPC_CHANNELS.EQUIPMENT_GET_ALL, async (): Promise<Equipment[]> => {
+    return getAllEquipment();
+  });
+
+  // Get single equipment
+  ipcMain.handle(IPC_CHANNELS.EQUIPMENT_GET, async (_event, id: string): Promise<Equipment | null> => {
+    return getEquipment(id);
+  });
+
+  // Add equipment
+  ipcMain.handle(IPC_CHANNELS.EQUIPMENT_ADD, async (_event, equipment: Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Equipment> => {
+    return createEquipment(equipment);
+  });
+
+  // Update equipment
+  ipcMain.handle(IPC_CHANNELS.EQUIPMENT_UPDATE, async (_event, id: string, equipment: Partial<Equipment>): Promise<Equipment | null> => {
+    return updateEquipment(id, equipment);
+  });
+
+  // Delete equipment
+  ipcMain.handle(IPC_CHANNELS.EQUIPMENT_DELETE, async (_event, id: string): Promise<boolean> => {
+    return deleteEquipment(id);
+  });
+
+  // Detect equipment from file path - match equipment by make/model patterns in path
+  ipcMain.handle(IPC_CHANNELS.EQUIPMENT_DETECT_FROM_PATH, async (_event, filePath: string): Promise<Equipment | null> => {
+    const allEquipment = getAllEquipment();
+    const pathLower = filePath.toLowerCase();
+    
+    // Try to find equipment where make or model appears in the file path
+    for (const eq of allEquipment) {
+      const makeLower = eq.make.toLowerCase();
+      const modelLower = eq.model.toLowerCase();
+      
+      if (pathLower.includes(makeLower) || pathLower.includes(modelLower)) {
+        return eq;
+      }
+      
+      // Also check manual path match
+      if (eq.manualPath && filePath.startsWith(eq.manualPath)) {
+        return eq;
+      }
+    }
+    
+    return null;
+  });
+
+  // ==========================================
+  // Maintenance Logs
+  // ==========================================
+
+  // Add maintenance log
+  ipcMain.handle(IPC_CHANNELS.LOGS_ADD, async (_event, log: Omit<MaintenanceLog, 'id' | 'createdAt'>): Promise<MaintenanceLog> => {
+    return createMaintenanceLog(log);
+  });
+
+  // Get all maintenance logs
+  ipcMain.handle(IPC_CHANNELS.LOGS_GET, async (_event, _limit?: number): Promise<MaintenanceLog[]> => {
+    return getAllMaintenanceLogs();
+  });
+
+  // Get maintenance logs for specific equipment
+  ipcMain.handle(IPC_CHANNELS.LOGS_GET_BY_EQUIPMENT, async (_event, equipmentId: string, _limit?: number): Promise<MaintenanceLog[]> => {
+    return getMaintenanceLogsForEquipment(equipmentId);
+  });
+
+  // ==========================================
+  // Failure Events
+  // ==========================================
+
+  // Add failure event
+  ipcMain.handle(IPC_CHANNELS.FAILURE_ADD, async (_event, event: Omit<FailureEvent, 'id' | 'createdAt'>): Promise<FailureEvent> => {
+    return createFailureEvent(event);
+  });
+
+  // Get failure events
+  ipcMain.handle(IPC_CHANNELS.FAILURE_GET, async (_event, equipmentId?: string, _limit?: number): Promise<FailureEvent[]> => {
+    if (equipmentId) {
+      return getFailureEventsForEquipment(equipmentId);
+    }
+    // For all equipment, aggregate
+    const allEquipment = getAllEquipment();
+    const allFailures: FailureEvent[] = [];
+    for (const eq of allEquipment) {
+      const failures = getFailureEventsForEquipment(eq.id);
+      allFailures.push(...failures);
+    }
+    return allFailures.sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+  });
+
+  // ==========================================
+  // Analytics
+  // ==========================================
+
+  // Get equipment analytics
+  ipcMain.handle(IPC_CHANNELS.ANALYTICS_GET, async (_event, equipmentId?: string): Promise<ReturnType<typeof calculateEquipmentAnalytics>[]> => {
+    if (equipmentId) {
+      return [calculateEquipmentAnalytics(equipmentId)];
+    }
+    // Get analytics for all equipment
+    const allEquipment = getAllEquipment();
+    return allEquipment.map(eq => calculateEquipmentAnalytics(eq.id));
   });
 }

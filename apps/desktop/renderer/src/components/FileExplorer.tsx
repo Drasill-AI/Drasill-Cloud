@@ -1,4 +1,3 @@
-import { TreeNode } from '@drasill/shared';
 import { useAppStore } from '../store';
 import { TreeItem } from './TreeItem';
 import styles from './FileExplorer.module.css';

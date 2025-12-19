@@ -1,14 +1,38 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { FileExplorer } from './FileExplorer';
 import { TabBar } from './TabBar';
 import { EditorPane } from './EditorPane';
 import { RightPanel } from './RightPanel';
+import { TopBar } from './TopBar';
+import { BottomPanel } from './BottomPanel';
+import { LogEntryModal } from './LogEntryModal';
+import { EquipmentModal } from './EquipmentModal';
+import { useAppStore } from '../store';
 import styles from './Layout.module.css';
 
 export function Layout() {
   const [sidebarWidth, setSidebarWidth] = useState(260);
   const [rightPanelWidth, setRightPanelWidth] = useState(300);
   const layoutRef = useRef<HTMLDivElement>(null);
+
+  const { 
+    bottomPanelState, 
+    setBottomPanelHeight, 
+    toggleBottomPanel,
+    activeTabId,
+    tabs,
+    detectEquipmentFromFile,
+  } = useAppStore();
+
+  // Detect equipment when active tab changes
+  useEffect(() => {
+    if (activeTabId) {
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      if (activeTab) {
+        detectEquipmentFromFile(activeTab.path);
+      }
+    }
+  }, [activeTabId, tabs, detectEquipmentFromFile]);
 
   const handleLeftDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -71,13 +95,27 @@ export function Layout() {
         onMouseDown={handleLeftDragStart}
       />
 
-      {/* Center - Editor Area */}
-      <main className={styles.main}>
-        <TabBar />
-        <div className={styles.editorContainer}>
-          <EditorPane />
-        </div>
-      </main>
+      {/* Center - Main Content Area */}
+      <div className={styles.centerArea}>
+        {/* Top Bar - Equipment Selection */}
+        <TopBar />
+        
+        {/* Editor Section */}
+        <main className={styles.main}>
+          <TabBar />
+          <div className={styles.editorContainer}>
+            <EditorPane />
+          </div>
+        </main>
+
+        {/* Bottom Panel - Logs & Analytics */}
+        <BottomPanel 
+          height={bottomPanelState.height}
+          onHeightChange={setBottomPanelHeight}
+          isOpen={bottomPanelState.isOpen}
+          onToggle={toggleBottomPanel}
+        />
+      </div>
 
       {/* Right Resize Handle */}
       <div 
@@ -89,6 +127,10 @@ export function Layout() {
       <aside className={styles.rightPanel} style={{ width: rightPanelWidth }}>
         <RightPanel />
       </aside>
+
+      {/* Modals */}
+      <LogEntryModal />
+      <EquipmentModal />
     </div>
   );
 }

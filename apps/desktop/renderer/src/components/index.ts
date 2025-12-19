@@ -7,3 +7,7 @@ export { PdfViewer } from './PdfViewer';
 export { RightPanel } from './RightPanel';
 export { CommandPalette } from './CommandPalette';
 export { Toast } from './Toast';
+export { TopBar } from './TopBar';
+export { BottomPanel } from './BottomPanel';
+export { LogEntryModal } from './LogEntryModal';
+export { EquipmentModal } from './EquipmentModal';
