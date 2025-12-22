@@ -23,6 +23,8 @@ import {
   getEquipment,
   getAllEquipment,
   createMaintenanceLog,
+  updateMaintenanceLog,
+  deleteMaintenanceLog,
   getMaintenanceLogsForEquipment,
   getAllMaintenanceLogs,
   createFailureEvent,
@@ -389,6 +391,16 @@ export function setupIpcHandlers(): void {
   // Get maintenance logs for specific equipment
   ipcMain.handle(IPC_CHANNELS.LOGS_GET_BY_EQUIPMENT, async (_event, equipmentId: string, _limit?: number): Promise<MaintenanceLog[]> => {
     return getMaintenanceLogsForEquipment(equipmentId);
+  });
+
+  // Update maintenance log
+  ipcMain.handle(IPC_CHANNELS.LOGS_UPDATE, async (_event, id: string, data: Partial<Omit<MaintenanceLog, 'id' | 'createdAt'>>): Promise<MaintenanceLog | null> => {
+    return updateMaintenanceLog(id, data);
+  });
+
+  // Delete maintenance log
+  ipcMain.handle(IPC_CHANNELS.LOGS_DELETE, async (_event, id: string): Promise<boolean> => {
+    return deleteMaintenanceLog(id);
   });
 
   // ==========================================

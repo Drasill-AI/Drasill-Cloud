@@ -24,6 +24,7 @@ interface ElectronAPI {
   onMenuCommandPalette: (callback: () => void) => () => void;
   // Chat API
   sendChatMessage: (request: ChatRequest) => Promise<void>;
+  onChatStreamStart: (callback: (data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string }> }) => void) => () => void;
   onChatStreamChunk: (callback: (chunk: ChatStreamChunk) => void) => () => void;
   onChatStreamEnd: (callback: (data: { id: string; cancelled?: boolean }) => void) => () => void;
   onChatStreamError: (callback: (data: { id?: string; error: string }) => void) => () => void;
@@ -53,6 +54,8 @@ interface ElectronAPI {
   addMaintenanceLog: (log: Omit<MaintenanceLog, 'id' | 'createdAt'>) => Promise<MaintenanceLog>;
   getMaintenanceLogs: (limit?: number) => Promise<MaintenanceLog[]>;
   getMaintenanceLogsByEquipment: (equipmentId: string, limit?: number) => Promise<MaintenanceLog[]>;
+  updateMaintenanceLog: (id: string, data: Partial<Omit<MaintenanceLog, 'id' | 'createdAt'>>) => Promise<MaintenanceLog | null>;
+  deleteMaintenanceLog: (id: string) => Promise<boolean>;
   // Failure Events API
   addFailureEvent: (event: Omit<FailureEvent, 'id' | 'createdAt'>) => Promise<FailureEvent>;
   getFailureEvents: (equipmentId?: string, limit?: number) => Promise<FailureEvent[]>;

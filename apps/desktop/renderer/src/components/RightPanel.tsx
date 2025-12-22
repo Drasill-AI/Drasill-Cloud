@@ -1,14 +1,17 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '../store';
-import { FileContext } from '@drasill/shared';
+import { FileContext, RAGSource } from '@drasill/shared';
 import styles from './RightPanel.module.css';
 import lonnieIcon from '../assets/lonnie.png';
 
 export function RightPanel() {
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showContextSelector, setShowContextSelector] = useState(false);
+  const [selectedContextPaths, setSelectedContextPaths] = useState<Set<string>>(new Set());
   const [apiKeyInput, setApiKeyInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const {
     chatMessages,
@@ -28,17 +31,77 @@ export function RightPanel() {
     ragChunksCount,
     indexWorkspace,
     clearRagIndex,
+    openFile,
   } = useAppStore();
 
-  // Get current file context
+  // Get current file context - supports multiple files
   const activeTab = tabs.find(t => t.id === activeTabId);
-  const fileContent = activeTab ? fileContents.get(activeTab.path) : undefined;
-  const fileContext: FileContext | undefined = activeTab && fileContent ? {
-    filePath: activeTab.path,
-    fileName: activeTab.name,
-    fileType: activeTab.type,
-    content: fileContent.slice(0, 8000), // Limit context size
-  } : undefined;
+  
+  // Build combined context from selected files
+  const fileContext: FileContext | undefined = useMemo(() => {
+    // If no files selected, use active tab as default
+    if (selectedContextPaths.size === 0 && activeTab) {
+      const content = fileContents.get(activeTab.path);
+      if (content) {
+        return {
+          filePath: activeTab.path,
+          fileName: activeTab.name,
+          fileType: activeTab.type,
+          content: content.slice(0, 8000),
+        };
+      }
+      return undefined;
+    }
+    
+    // Combine content from all selected files
+    const selectedTabs = tabs.filter(t => selectedContextPaths.has(t.path));
+    if (selectedTabs.length === 0) return undefined;
+    
+    const combinedContent: string[] = [];
+    let totalLength = 0;
+    const maxTotal = 16000; // Combined limit
+    
+    for (const tab of selectedTabs) {
+      const content = fileContents.get(tab.path);
+      if (content) {
+        const header = `\n--- ${tab.name} ---\n`;
+        const remaining = maxTotal - totalLength - header.length;
+        if (remaining <= 0) break;
+        const sliced = content.slice(0, remaining);
+        combinedContent.push(header + sliced);
+        totalLength += header.length + sliced.length;
+      }
+    }
+    
+    return {
+      filePath: selectedTabs.map(t => t.path).join(', '),
+      fileName: selectedTabs.length === 1 ? selectedTabs[0].name : `${selectedTabs.length} files`,
+      fileType: 'multiple',
+      content: combinedContent.join('\n'),
+    };
+  }, [selectedContextPaths, tabs, fileContents, activeTab]);
+  
+  // Toggle file selection for context
+  const toggleContextFile = useCallback((path: string) => {
+    setSelectedContextPaths(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+  
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    }
+  }, [input]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -65,6 +128,44 @@ export function RightPanel() {
       setShowSettings(false);
     }
   };
+
+  // Helper function to handle citation clicks
+  const handleCitationClick = useCallback((source: RAGSource) => {
+    // Extract filename from path for the tab
+    const fileName = source.fileName;
+    openFile(source.filePath, fileName);
+  }, [openFile]);
+
+  // Render message content with clickable citations
+  const renderMessageContent = useCallback((content: string, ragSources?: RAGSource[]) => {
+    if (!ragSources || ragSources.length === 0) {
+      return content;
+    }
+
+    // Parse citations like [[1]], [[2]], etc.
+    const parts = content.split(/(\[\[\d+\]\])/g);
+    
+    return parts.map((part, index) => {
+      const match = part.match(/^\[\[(\d+)\]\]$/);
+      if (match) {
+        const sourceIndex = parseInt(match[1], 10) - 1; // 1-indexed in text
+        const source = ragSources[sourceIndex];
+        if (source) {
+          return (
+            <button
+              key={index}
+              className={styles.citationLink}
+              onClick={() => handleCitationClick(source)}
+              title={`${source.fileName} (${source.section})`}
+            >
+              [{match[1]}]
+            </button>
+          );
+        }
+      }
+      return <span key={index}>{part}</span>;
+    });
+  }, [handleCitationClick]);
 
   // Settings modal
   if (showSettings) {
@@ -161,9 +262,13 @@ export function RightPanel() {
           <button 
             className={styles.settingsButton}
             onClick={() => setShowSettings(true)}
-            title="API Settings"
+            title="Settings"
           >
-            ⚙️
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
           </button>
         </div>
       </div>
@@ -183,12 +288,65 @@ export function RightPanel() {
         </div>
       )}
 
-      {/* File context indicator */}
-      {fileContext && (
-        <div className={styles.contextBar}>
-          <span className={styles.contextIcon}>📄</span>
-          <span className={styles.contextFile}>{fileContext.fileName}</span>
-          <span className={styles.contextLabel}>Context</span>
+      {/* File context indicator and selector */}
+      {tabs.length > 0 && (
+        <div className={styles.contextSection}>
+          <button 
+            className={styles.contextBar}
+            onClick={() => setShowContextSelector(!showContextSelector)}
+          >
+            <span className={styles.contextIcon}>📄</span>
+            <span className={styles.contextFile}>
+              {selectedContextPaths.size === 0 
+                ? (activeTab?.name || 'No file selected')
+                : selectedContextPaths.size === 1 
+                  ? tabs.find(t => selectedContextPaths.has(t.path))?.name 
+                  : `${selectedContextPaths.size} files selected`
+              }
+            </span>
+            <span className={styles.contextLabel}>
+              {selectedContextPaths.size === 0 ? 'Auto' : 'Context'}
+            </span>
+            <svg 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              width="14" 
+              height="14"
+              className={`${styles.contextChevron} ${showContextSelector ? styles.open : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          
+          {showContextSelector && (
+            <div className={styles.contextSelector}>
+              <div className={styles.contextSelectorHeader}>
+                <span>Select files to include in context:</span>
+                {selectedContextPaths.size > 0 && (
+                  <button 
+                    className={styles.clearSelection}
+                    onClick={() => setSelectedContextPaths(new Set())}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className={styles.contextFileList}>
+                {tabs.map(tab => (
+                  <label key={tab.id} className={styles.contextFileItem}>
+                    <input
+                      type="checkbox"
+                      checked={selectedContextPaths.has(tab.path)}
+                      onChange={() => toggleContextFile(tab.path)}
+                    />
+                    <span className={styles.contextFileName}>{tab.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
       
@@ -237,10 +395,31 @@ export function RightPanel() {
                   {msg.role === 'user' ? '👤 You' : <><img src={lonnieIcon} alt="Lonnie" className={styles.lonnieAvatar} /> Lonnie</>}
                 </div>
                 <div className={styles.messageContent}>
-                  {msg.content || (isChatLoading && msg.role === 'assistant' ? (
+                  {msg.content ? (
+                    msg.role === 'assistant' && msg.ragSources ? (
+                      renderMessageContent(msg.content, msg.ragSources)
+                    ) : (
+                      msg.content
+                    )
+                  ) : (isChatLoading && msg.role === 'assistant' ? (
                     <span className={styles.typing}>Thinking...</span>
                   ) : null)}
                 </div>
+                {msg.role === 'assistant' && msg.ragSources && msg.ragSources.length > 0 && (
+                  <div className={styles.sourcesList}>
+                    <span className={styles.sourcesLabel}>Sources:</span>
+                    {msg.ragSources.map((source, idx) => (
+                      <button
+                        key={idx}
+                        className={styles.sourceButton}
+                        onClick={() => handleCitationClick(source)}
+                        title={source.section}
+                      >
+                        [{idx + 1}] {source.fileName}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             <div ref={messagesEndRef} />
@@ -276,6 +455,7 @@ export function RightPanel() {
       
       <div className={styles.inputArea}>
         <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

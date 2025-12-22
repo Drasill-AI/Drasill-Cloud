@@ -13,7 +13,11 @@ export function LogEntryModal() {
     selectedEquipmentId,
     showToast,
     refreshLogs,
+    editingLog,
+    setEditingLog,
   } = useAppStore();
+
+  const isEditMode = !!editingLog;
 
   const [formData, setFormData] = useState({
     equipmentId: selectedEquipmentId ?? '',
@@ -27,29 +31,50 @@ export function LogEntryModal() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Update equipment ID when selected equipment changes
   useEffect(() => {
-    if (selectedEquipmentId) {
+    if (selectedEquipmentId && !editingLog) {
       setFormData(prev => ({ ...prev, equipmentId: selectedEquipmentId }));
     }
-  }, [selectedEquipmentId]);
+  }, [selectedEquipmentId, editingLog]);
 
-  // Reset form when modal opens
+  // Reset form when modal opens, or populate for editing
   useEffect(() => {
     if (isLogModalOpen) {
-      setFormData({
-        equipmentId: selectedEquipmentId ?? (equipment[0]?.id ?? ''),
-        type: 'preventive',
-        technician: '',
-        startedAt: new Date().toISOString().slice(0, 16),
-        completedAt: '',
-        durationMinutes: '',
-        partsUsed: '',
-        notes: '',
-      });
+      if (editingLog) {
+        // Edit mode: populate with existing log data
+        setFormData({
+          equipmentId: editingLog.equipmentId,
+          type: editingLog.type as LogType,
+          technician: editingLog.technician || '',
+          startedAt: editingLog.startedAt ? new Date(editingLog.startedAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+          completedAt: editingLog.completedAt ? new Date(editingLog.completedAt).toISOString().slice(0, 16) : '',
+          durationMinutes: editingLog.durationMinutes?.toString() || '',
+          partsUsed: editingLog.partsUsed || '',
+          notes: editingLog.notes || '',
+        });
+      } else {
+        // Add mode: reset to defaults
+        setFormData({
+          equipmentId: selectedEquipmentId ?? (equipment[0]?.id ?? ''),
+          type: 'preventive',
+          technician: '',
+          startedAt: new Date().toISOString().slice(0, 16),
+          completedAt: '',
+          durationMinutes: '',
+          partsUsed: '',
+          notes: '',
+        });
+      }
     }
-  }, [isLogModalOpen, selectedEquipmentId, equipment]);
+  }, [isLogModalOpen, editingLog, selectedEquipmentId, equipment]);
+
+  const handleClose = () => {
+    setLogModalOpen(false);
+    setEditingLog(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +86,7 @@ export function LogEntryModal() {
 
     setIsSubmitting(true);
     try {
-      await window.electronAPI.addMaintenanceLog({
+      const logData = {
         equipmentId: formData.equipmentId,
         type: formData.type,
         startedAt: new Date(formData.startedAt).toISOString(),
@@ -70,22 +95,48 @@ export function LogEntryModal() {
         technician: formData.technician || null,
         partsUsed: formData.partsUsed || null,
         notes: formData.notes || null,
-      });
+      };
 
-      showToast('success', 'Maintenance log added successfully');
-      setLogModalOpen(false);
+      if (isEditMode && editingLog?.id) {
+        await window.electronAPI.updateMaintenanceLog(editingLog.id, logData);
+        showToast('success', 'Maintenance log updated successfully');
+      } else {
+        await window.electronAPI.addMaintenanceLog(logData);
+        showToast('success', 'Maintenance log added successfully');
+      }
+
+      handleClose();
       refreshLogs();
     } catch (error) {
-      showToast('error', 'Failed to add maintenance log');
+      showToast('error', isEditMode ? 'Failed to update maintenance log' : 'Failed to add maintenance log');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingLog?.id) return;
+
+    const confirmed = confirm('Are you sure you want to delete this log entry? This action cannot be undone.');
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await window.electronAPI.deleteMaintenanceLog(editingLog.id);
+      showToast('success', 'Maintenance log deleted');
+      handleClose();
+      refreshLogs();
+    } catch (error) {
+      showToast('error', 'Failed to delete maintenance log');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   if (!isLogModalOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={() => setLogModalOpen(false)}>
+    <div className={styles.overlay} onClick={handleClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <span className={styles.title}>
@@ -95,9 +146,9 @@ export function LogEntryModal() {
               <line x1="12" y1="18" x2="12" y2="12" />
               <line x1="9" y1="15" x2="15" y2="15" />
             </svg>
-            Add Maintenance Log
+            {isEditMode ? 'Edit Maintenance Log' : 'Add Maintenance Log'}
           </span>
-          <button className={styles.closeButton} onClick={() => setLogModalOpen(false)}>
+          <button className={styles.closeButton} onClick={handleClose}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -215,20 +266,32 @@ export function LogEntryModal() {
           </div>
 
           <div className={styles.footer}>
-            <button 
-              type="button" 
-              className={styles.cancelButton}
-              onClick={() => setLogModalOpen(false)}
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className={styles.submitButton}
-              disabled={isSubmitting || !formData.equipmentId}
-            >
-              {isSubmitting ? 'Saving...' : 'Save Log Entry'}
-            </button>
+            {isEditMode && (
+              <button 
+                type="button" 
+                className={styles.deleteButton}
+                onClick={handleDelete}
+                disabled={isDeleting || isSubmitting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            )}
+            <div className={styles.footerActions}>
+              <button 
+                type="button" 
+                className={styles.cancelButton}
+                onClick={handleClose}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className={styles.submitButton}
+                disabled={isSubmitting || isDeleting || !formData.equipmentId}
+              >
+                {isSubmitting ? 'Saving...' : (isEditMode ? 'Update Log' : 'Save Log Entry')}
+              </button>
+            </div>
           </div>
         </form>
       </div>

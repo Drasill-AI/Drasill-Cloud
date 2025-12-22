@@ -291,7 +291,7 @@ export async function indexWorkspace(workspacePath: string, window: BrowserWindo
 /**
  * Search the vector store for relevant chunks
  */
-export async function searchRAG(query: string, topK = 5): Promise<{ chunks: Array<{ content: string; fileName: string; filePath: string; score: number }> }> {
+export async function searchRAG(query: string, topK = 5): Promise<{ chunks: Array<{ content: string; fileName: string; filePath: string; score: number; chunkIndex: number; totalChunks: number }> }> {
   if (!vectorStore || vectorStore.chunks.length === 0) {
     return { chunks: [] };
   }
@@ -315,6 +315,8 @@ export async function searchRAG(query: string, topK = 5): Promise<{ chunks: Arra
         fileName: c.fileName,
         filePath: c.filePath,
         score: c.score,
+        chunkIndex: c.chunkIndex,
+        totalChunks: c.totalChunks,
       })),
     };
   } catch (error) {
@@ -325,20 +327,36 @@ export async function searchRAG(query: string, topK = 5): Promise<{ chunks: Arra
 
 /**
  * Get RAG context for a chat query
+ * Returns context with structured source citations
  */
-export async function getRAGContext(query: string): Promise<string> {
+export async function getRAGContext(query: string): Promise<{ context: string; sources: Array<{ fileName: string; filePath: string; section: string }> }> {
   const results = await searchRAG(query, 5);
   
   if (results.chunks.length === 0) {
-    return '';
+    return { context: '', sources: [] };
   }
   
   // Build context string with source attribution
-  const contextParts = results.chunks.map((chunk) => {
-    return `[Source: ${chunk.fileName}]\n${chunk.content}`;
+  // Use a numbered reference format that the AI can cite
+  const sources: Array<{ fileName: string; filePath: string; section: string }> = [];
+  const contextParts = results.chunks.map((chunk, index) => {
+    const sectionLabel = chunk.totalChunks > 1 
+      ? `Section ${chunk.chunkIndex + 1}/${chunk.totalChunks}`
+      : 'Full Document';
+    
+    sources.push({
+      fileName: chunk.fileName,
+      filePath: chunk.filePath,
+      section: sectionLabel,
+    });
+    
+    return `[${index + 1}] ${chunk.fileName} (${sectionLabel})\n${chunk.content}`;
   });
   
-  return contextParts.join('\n\n---\n\n');
+  return {
+    context: contextParts.join('\n\n---\n\n'),
+    sources,
+  };
 }
 
 /**

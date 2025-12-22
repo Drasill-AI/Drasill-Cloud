@@ -96,6 +96,15 @@ const api = {
   },
 
   /**
+   * Subscribe to chat stream start (includes RAG sources)
+   */
+  onChatStreamStart: (callback: (data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string }> }) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string }> }) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.CHAT_STREAM_START, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.CHAT_STREAM_START, handler);
+  },
+
+  /**
    * Subscribe to chat stream chunks
    */
   onChatStreamChunk: (callback: (chunk: ChatStreamChunk) => void): (() => void) => {
@@ -283,6 +292,20 @@ const api = {
    */
   getMaintenanceLogsByEquipment: (equipmentId: string, limit?: number): Promise<MaintenanceLog[]> => {
     return ipcRenderer.invoke(IPC_CHANNELS.LOGS_GET_BY_EQUIPMENT, equipmentId, limit);
+  },
+
+  /**
+   * Update maintenance log
+   */
+  updateMaintenanceLog: (id: string, data: Partial<Omit<MaintenanceLog, 'id' | 'createdAt'>>): Promise<MaintenanceLog | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LOGS_UPDATE, id, data);
+  },
+
+  /**
+   * Delete maintenance log
+   */
+  deleteMaintenanceLog: (id: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LOGS_DELETE, id);
   },
 
   // ==========================================

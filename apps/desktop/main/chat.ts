@@ -46,9 +46,19 @@ export async function hasApiKey(): Promise<boolean> {
 }
 
 /**
- * Build the system prompt with optional file context and RAG context
+ * RAG source citation info
  */
-async function buildSystemPrompt(context?: FileContext, userQuery?: string): Promise<string> {
+interface RAGSource {
+  fileName: string;
+  filePath: string;
+  section: string;
+}
+
+/**
+ * Build the system prompt with optional file context and RAG context
+ * Returns both the prompt and any RAG sources for citation
+ */
+async function buildSystemPrompt(context?: FileContext, userQuery?: string): Promise<{ prompt: string; ragSources: RAGSource[] }> {
   let systemPrompt = `You are Lonnie, an AI assistant for Drasill Cloud - an equipment documentation and maintenance management system.
 
 Your capabilities:
@@ -69,17 +79,20 @@ Be concise, accurate, and helpful. When referencing information from provided co
 
   // Add RAG context if available
   const ragStatus = getIndexingStatus();
+  let ragSources: RAGSource[] = [];
+  
   if (ragStatus.chunksCount > 0 && userQuery) {
     try {
-      const ragContext = await getRAGContext(userQuery);
-      if (ragContext) {
+      const ragResult = await getRAGContext(userQuery);
+      if (ragResult.context) {
+        ragSources = ragResult.sources;
         systemPrompt += `\n\n--- KNOWLEDGE BASE CONTEXT ---
-The following information was retrieved from the user's indexed documentation:
+The following numbered sources were retrieved from the user's indexed documentation:
 
-${ragContext}
+${ragResult.context}
 --- END KNOWLEDGE BASE CONTEXT ---
 
-Use this context to answer the user's question. Cite the source file when referencing information.`;
+IMPORTANT: When referencing information from the knowledge base, cite using the format [[1]], [[2]], etc. corresponding to the source numbers above. Always cite your sources when providing information from the documentation.`;
       }
     } catch (error) {
       console.error('Failed to get RAG context:', error);
@@ -103,7 +116,7 @@ ${contentPreview}
 The user is viewing this file. Answer questions with reference to this content when relevant.`;
   }
 
-  return systemPrompt;
+  return { prompt: systemPrompt, ragSources };
 }
 
 /**
@@ -138,7 +151,15 @@ export async function sendChatMessage(
 
   try {
     // Build system prompt with RAG context
-    const systemPrompt = await buildSystemPrompt(request.context, request.message);
+    const { prompt: systemPrompt, ragSources } = await buildSystemPrompt(request.context, request.message);
+    
+    // Send RAG sources to frontend if available (for citation linking)
+    if (ragSources.length > 0) {
+      window.webContents.send(IPC_CHANNELS.CHAT_STREAM_START, {
+        messageId,
+        ragSources,
+      });
+    }
     
     // Build messages array
     const messages: OpenAI.ChatCompletionMessageParam[] = [

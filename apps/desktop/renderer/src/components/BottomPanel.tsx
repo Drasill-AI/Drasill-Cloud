@@ -17,7 +17,7 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
   const [analytics, setAnalytics] = useState<EquipmentAnalytics[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { equipment, showToast, setLogModalOpen, logsRefreshTrigger } = useAppStore();
+  const { equipment, showToast, setLogModalOpen, setEditingLog, logsRefreshTrigger } = useAppStore();
 
   // Load data when panel opens or equipment selection changes
   useEffect(() => {
@@ -222,7 +222,16 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
                   </div>
                 ) : (
                   logs.map(log => (
-                    <div key={log.id} className={styles.logEntry}>
+                    <div 
+                      key={log.id} 
+                      className={styles.logEntry}
+                      onClick={() => {
+                        setEditingLog(log);
+                        setLogModalOpen(true);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to edit"
+                    >
                       <span className={styles.logDate}>{formatDate(log.startedAt)}</span>
                       <span className={`${styles.logType} ${styles[log.type]}`}>{log.type}</span>
                       <span className={styles.logDescription}>{log.notes || 'No notes'}</span>

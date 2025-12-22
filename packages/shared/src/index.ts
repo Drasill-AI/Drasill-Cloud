@@ -100,6 +100,7 @@ export const IPC_CHANNELS = {
   STAT: 'stat',
   // Chat
   CHAT_SEND_MESSAGE: 'chat-send-message',
+  CHAT_STREAM_START: 'chat-stream-start',
   CHAT_STREAM_CHUNK: 'chat-stream-chunk',
   CHAT_STREAM_END: 'chat-stream-end',
   CHAT_STREAM_ERROR: 'chat-stream-error',
@@ -128,6 +129,8 @@ export const IPC_CHANNELS = {
   LOGS_ADD: 'logs-add',
   LOGS_GET: 'logs-get',
   LOGS_GET_BY_EQUIPMENT: 'logs-get-by-equipment',
+  LOGS_UPDATE: 'logs-update',
+  LOGS_DELETE: 'logs-delete',
   // Failure Events
   FAILURE_ADD: 'failure-add',
   FAILURE_GET: 'failure-get',
@@ -140,6 +143,15 @@ export const IPC_CHANNELS = {
 } as const;
 
 /**
+ * RAG source citation
+ */
+export interface RAGSource {
+  fileName: string;
+  filePath: string;
+  section: string;
+}
+
+/**
  * Chat message interface
  */
 export interface ChatMessage {
@@ -147,6 +159,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  ragSources?: RAGSource[];
 }
 
 /**

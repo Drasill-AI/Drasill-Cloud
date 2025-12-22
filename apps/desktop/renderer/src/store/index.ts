@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Tab, TreeNode, getFileType, ChatMessage, FileContext, PersistedState, Equipment, BottomPanelState } from '@drasill/shared';
+import { Tab, TreeNode, getFileType, ChatMessage, FileContext, PersistedState, Equipment, BottomPanelState, MaintenanceLog } from '@drasill/shared';
 
 interface ToastMessage {
   id: string;
@@ -46,6 +46,7 @@ interface AppState {
   isLogModalOpen: boolean;
   isEquipmentModalOpen: boolean;
   logsRefreshTrigger: number;
+  editingLog: MaintenanceLog | null;
 
   // Bottom Panel
   bottomPanelState: BottomPanelState;
@@ -92,6 +93,7 @@ interface AppState {
   detectEquipmentFromFile: (path: string) => Promise<void>;
   setLogModalOpen: (open: boolean) => void;
   setEquipmentModalOpen: (open: boolean) => void;
+  setEditingLog: (log: MaintenanceLog | null) => void;
   refreshLogs: () => void;
 
   // Bottom panel actions
@@ -131,6 +133,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLogModalOpen: false,
   isEquipmentModalOpen: false,
   logsRefreshTrigger: 0,
+  editingLog: null,
 
   // Bottom panel state
   bottomPanelState: {
@@ -452,6 +455,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
 
     // Set up stream listeners
+    // Listen for stream start to capture RAG sources
+    const removeStartListener = window.electronAPI.onChatStreamStart((data) => {
+      if (data.ragSources && data.ragSources.length > 0) {
+        set((state) => {
+          const messages = [...state.chatMessages];
+          const lastMsg = messages[messages.length - 1];
+          if (lastMsg && lastMsg.role === 'assistant') {
+            messages[messages.length - 1] = {
+              ...lastMsg,
+              ragSources: data.ragSources,
+            };
+          }
+          return { chatMessages: messages };
+        });
+      }
+    });
+
     const removeChunkListener = window.electronAPI.onChatStreamChunk((chunk) => {
       set((state) => {
         const messages = [...state.chatMessages];
@@ -468,6 +488,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const removeEndListener = window.electronAPI.onChatStreamEnd(() => {
       set({ isChatLoading: false });
+      removeStartListener();
       removeChunkListener();
       removeEndListener();
       removeErrorListener();
@@ -483,6 +504,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           chatError: data.error 
         };
       });
+      removeStartListener();
       removeChunkListener();
       removeEndListener();
       removeErrorListener();
@@ -668,6 +690,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setLogModalOpen: (open: boolean) => {
     set({ isLogModalOpen: open });
+  },
+
+  setEditingLog: (log: MaintenanceLog | null) => {
+    set({ editingLog: log });
   },
 
   setEquipmentModalOpen: (open: boolean) => {

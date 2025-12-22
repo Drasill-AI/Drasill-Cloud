@@ -47,6 +47,14 @@
   opacity: 0.5;
   transition: opacity 0.15s ease;
   border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.settingsButton svg {
+  fill: currentColor;
 }
 
 .settingsButton:hover,
@@ -86,14 +94,27 @@
   transition: width 0.3s ease;
 }
 
+/* Context Section */
+.contextSection {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
 .contextBar {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
   background-color: rgba(76, 141, 255, 0.08);
-  border-bottom: 1px solid var(--border-subtle);
   font-size: 12px;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.contextBar:hover {
+  background-color: rgba(76, 141, 255, 0.12);
 }
 
 .contextIcon {
@@ -119,6 +140,79 @@
   padding: 2px 6px;
   background: var(--accent-glow);
   border-radius: 3px;
+}
+
+.contextChevron {
+  opacity: 0.5;
+  transition: transform 0.15s ease;
+}
+
+.contextChevron.open {
+  transform: rotate(180deg);
+}
+
+.contextSelector {
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.contextSelectorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.clearSelection {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.clearSelection:hover {
+  text-decoration: underline;
+}
+
+.contextFileList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.contextFileItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.contextFileItem:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.contextFileItem input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+}
+
+.contextFileName {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content {
@@ -236,6 +330,62 @@
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Citation links in message content */
+.citationLink {
+  display: inline;
+  background: rgba(var(--accent-rgb), 0.15);
+  color: var(--accent);
+  border: none;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.citationLink:hover {
+  background: rgba(var(--accent-rgb), 0.3);
+  text-decoration: underline;
+}
+
+/* Sources list below messages */
+.sourcesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  align-items: center;
+}
+
+.sourcesLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+}
+
+.sourceButton {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sourceButton:hover {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .typing {
