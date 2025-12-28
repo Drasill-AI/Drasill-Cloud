@@ -152,6 +152,13 @@ function generateRegionId(index: number): string {
 }
 
 /**
+ * Helper to yield to the event loop, allowing UI updates
+ */
+function yieldToMain(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+/**
  * Detect component regions in an image using classical CV techniques
  * 
  * Pipeline:
@@ -171,6 +178,9 @@ export async function detectComponents(
   console.log('[CV] Starting detection...');
   
   await loadOpenCV();
+  
+  // Yield to allow UI to update before heavy processing
+  await yieldToMain();
   
   console.log('[CV] OpenCV loaded, cv available:', typeof cv !== 'undefined');
   
@@ -214,6 +224,9 @@ export async function detectComponents(
     cv.Canny(blurred, edges, opts.cannyLow, opts.cannyHigh);
     console.log('[CV] Canny edge detection complete');
     
+    // Yield to allow UI updates
+    await yieldToMain();
+    
     // 4. Morphological operations
     const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
     
@@ -229,8 +242,17 @@ export async function detectComponents(
     cv.findContours(morphed, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
     console.log('[CV] Found', contours.size(), 'contours');
     
+    // Yield before processing contours
+    await yieldToMain();
+    
     // 6-8. Process each contour
-    for (let i = 0; i < contours.size(); i++) {
+    const contourCount = contours.size();
+    for (let i = 0; i < contourCount; i++) {
+      // Yield every 50 contours to keep UI responsive
+      if (i > 0 && i % 50 === 0) {
+        await yieldToMain();
+      }
+      
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
       

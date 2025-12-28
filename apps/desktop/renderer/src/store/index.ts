@@ -13,6 +13,9 @@ interface AppState {
   tree: TreeNode[];
   isLoadingTree: boolean;
 
+  // Connection status
+  isOnline: boolean;
+
   // Chat
   chatMessages: ChatMessage[];
   isChatLoading: boolean;
@@ -106,6 +109,9 @@ interface AppState {
 
   // Equipment viewer
   openEquipmentViewer: (equipmentId: string) => void;
+
+  // Connection status
+  setOnlineStatus: (isOnline: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -113,6 +119,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   workspacePath: null,
   tree: [],
   isLoadingTree: false,
+  isOnline: true,
   tabs: [],
   activeTabId: null,
   fileContents: new Map(),
@@ -832,6 +839,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
 
     get().savePersistedState();
+  },
+
+  setOnlineStatus: (isOnline: boolean) => {
+    set({ isOnline });
   },
 }));
 

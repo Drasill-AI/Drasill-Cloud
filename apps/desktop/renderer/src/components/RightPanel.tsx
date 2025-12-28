@@ -32,6 +32,8 @@ export function RightPanel() {
     indexWorkspace,
     clearRagIndex,
     openFile,
+    isOnline,
+    showToast,
   } = useAppStore();
 
   // Get current file context - supports multiple files
@@ -110,9 +112,13 @@ export function RightPanel() {
 
   const handleSend = useCallback(() => {
     if (!input.trim() || isChatLoading) return;
+    if (!isOnline) {
+      showToast('warning', 'AI features unavailable while offline');
+      return;
+    }
     sendMessage(input.trim(), fileContext);
     setInput('');
-  }, [input, isChatLoading, sendMessage, fileContext]);
+  }, [input, isChatLoading, isOnline, sendMessage, fileContext, showToast]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

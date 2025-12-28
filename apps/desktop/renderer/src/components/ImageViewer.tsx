@@ -9,7 +9,7 @@ interface ImageViewerProps {
 }
 
 export function ImageViewer({ fileName, path }: ImageViewerProps) {
-  const { showToast } = useAppStore();
+  const { showToast, isOnline } = useAppStore();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +154,11 @@ export function ImageViewer({ fileName, path }: ImageViewerProps) {
   // Label detected regions with GPT-4V
   const handleLabelComponents = async () => {
     if (detectedRegions.length === 0 || !imageBase64 || isLabeling) return;
+    
+    if (!isOnline) {
+      showToast('warning', 'AI labeling unavailable while offline');
+      return;
+    }
     
     setIsLabeling(true);
     

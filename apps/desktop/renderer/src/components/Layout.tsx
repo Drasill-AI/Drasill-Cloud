@@ -7,6 +7,7 @@ import { TopBar } from './TopBar';
 import { BottomPanel } from './BottomPanel';
 import { LogEntryModal } from './LogEntryModal';
 import { EquipmentModal } from './EquipmentModal';
+import { ConnectionStatus } from './ConnectionStatus';
 import { useAppStore } from '../store';
 import styles from './Layout.module.css';
 
@@ -131,6 +132,9 @@ export function Layout() {
       {/* Modals */}
       <LogEntryModal />
       <EquipmentModal />
+
+      {/* Connection Status Indicator */}
+      <ConnectionStatus />
     </div>
   );
 }
