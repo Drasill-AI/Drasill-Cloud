@@ -60,15 +60,17 @@ export function TopBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Mock health score for demo - in real app, this would come from analytics
+  // Get equipment health status based on actual status
   const getEquipmentHealth = (id: string | undefined) => {
     if (!id) return 'healthy';
-    // Simple mock based on ID hash - replace with real analytics
-    const hash = id.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-    const score = 70 + (hash % 30);
-    if (score >= 80) return 'healthy';
-    if (score >= 50) return 'warning';
-    return 'critical';
+    
+    // Find the equipment and check its status
+    const eq = equipment.find(e => e.id === id);
+    if (eq?.status === 'down') return 'critical';
+    if (eq?.status === 'maintenance') return 'warning';
+    
+    // Default to healthy for operational equipment
+    return 'healthy';
   };
 
   return (

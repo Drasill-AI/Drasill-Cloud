@@ -259,9 +259,9 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
         <div className={styles.headerRight}>
           <span 
             className={styles.statusBadge}
-            style={{ backgroundColor: getStatusColor(equipmentData.status) }}
+            style={{ backgroundColor: getStatusColor(equipmentData.status || 'operational') }}
           >
-            {equipmentData.status.charAt(0).toUpperCase() + equipmentData.status.slice(1)}
+            {(equipmentData.status || 'operational').charAt(0).toUpperCase() + (equipmentData.status || 'operational').slice(1)}
           </span>
           <div className={styles.healthScore} style={{ borderColor: getHealthColor(healthScore) }}>
             <span className={styles.healthValue} style={{ color: getHealthColor(healthScore) }}>
