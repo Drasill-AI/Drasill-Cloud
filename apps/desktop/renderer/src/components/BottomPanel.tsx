@@ -85,7 +85,7 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
   };
 
   const getHealthClass = (score: number | undefined) => {
-    if (!score) return styles.good;
+    if (score === undefined) return styles.good;
     if (score >= 80) return styles.good;
     if (score >= 50) return styles.warning;
     return styles.critical;
