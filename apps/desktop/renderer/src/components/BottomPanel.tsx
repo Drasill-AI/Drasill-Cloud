@@ -93,6 +93,10 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
 
   // Calculate health score from analytics data
   const getHealthScore = (item: EquipmentAnalytics): number => {
+    // If equipment is down, health is 0%
+    const eq = equipment.find(e => e.id === item.equipmentId);
+    if (eq?.status === 'down') return 0;
+    
     if (item.availability !== null) {
       return Math.round(item.availability);
     }

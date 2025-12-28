@@ -5,6 +5,8 @@ import { useAppStore } from '../store';
 import { PdfViewer } from './PdfViewer';
 import { WordViewer } from './WordViewer';
 import { SchematicViewer } from './SchematicViewer';
+import { ImageViewer } from './ImageViewer';
+import { EquipmentViewer } from './EquipmentViewer';
 import styles from './EditorPane.module.css';
 import logoImage from '../assets/logo.png';
 
@@ -96,9 +98,19 @@ export function EditorPane() {
     return <WordViewer fileName={activeTab.name} path={activeTab.path} />;
   }
 
+  // Image viewer
+  if (activeTab.type === 'image') {
+    return <ImageViewer fileName={activeTab.name} path={activeTab.path} />;
+  }
+
   // Schematic viewer
   if (activeTab.type === 'schematic' && activeTab.schematicData) {
     return <SchematicViewer schematicData={activeTab.schematicData} />;
+  }
+
+  // Equipment viewer
+  if (activeTab.type === 'equipment' && activeTab.equipmentId) {
+    return <EquipmentViewer equipmentId={activeTab.equipmentId} />;
   }
 
   // Monaco editor for text/markdown

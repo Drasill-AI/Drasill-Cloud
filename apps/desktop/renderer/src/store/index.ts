@@ -103,6 +103,9 @@ interface AppState {
 
   // Schematic actions
   openSchematicTab: (toolCall: SchematicToolCall) => Promise<void>;
+
+  // Equipment viewer
+  openEquipmentViewer: (equipmentId: string) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -177,7 +180,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadDirectory: async (path: string): Promise<TreeNode[]> => {
     try {
       const entries = await window.electronAPI.readDir(path);
-      return entries.map((entry) => ({
+      
+      // Filter to only show PDFs, image files, and directories
+      const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.tif'];
+      const filteredEntries = entries.filter((entry) => {
+        if (entry.isDirectory) return true;
+        const ext = entry.extension?.toLowerCase() || '';
+        return allowedExtensions.includes(ext);
+      });
+      
+      return filteredEntries.map((entry) => ({
         id: entry.path,
         name: entry.name,
         path: entry.path,
@@ -783,6 +795,43 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('[Store] Error opening schematic tab:', error);
       get().showToast('error', `Failed to open schematic: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  },
+
+  openEquipmentViewer: (equipmentId: string) => {
+    const { equipment, tabs } = get();
+    const equipmentData = equipment.find(e => e.id === equipmentId);
+    
+    if (!equipmentData) {
+      get().showToast('error', 'Equipment not found');
+      return;
+    }
+
+    // Check if tab already exists
+    const existingTab = tabs.find((t) => 
+      t.type === 'equipment' && t.equipmentId === equipmentId
+    );
+
+    if (existingTab) {
+      set({ activeTabId: existingTab.id });
+      return;
+    }
+
+    // Create new equipment tab
+    const tabId = `equipment-${equipmentId}`;
+    const newTab: Tab = {
+      id: tabId,
+      name: `⚙️ ${equipmentData.name}`,
+      path: '',
+      type: 'equipment',
+      equipmentId,
+    };
+
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: newTab.id,
+    }));
+
+    get().savePersistedState();
   },
 }));
 

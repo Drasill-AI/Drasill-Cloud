@@ -14,10 +14,18 @@ import {
   PersistedState,
   SchematicToolCall,
   SchematicToolResponse,
+  CVDetectedRegion,
+  LabelingResult,
+  GenerateExplodedRequest,
+  GenerateExplodedResult,
+  CSVImportResult,
+  CSVExportOptions,
 } from '@drasill/shared';
 import { sendChatMessage, setApiKey, getApiKey, hasApiKey, cancelStream } from './chat';
 import { indexWorkspace, searchRAG, getIndexingStatus, clearVectorStore, resetOpenAI } from './rag';
 import { processSchematicToolCall, getSchematicImage } from './schematic';
+import { labelDetectedRegions, generateExplodedView } from './vision';
+import { importEquipmentCSV, exportEquipmentCSV, exportLogsCSV, getEquipmentCSVTemplate } from './csv';
 import {
   getDatabase,
   createEquipment,
@@ -33,9 +41,15 @@ import {
   createFailureEvent,
   getFailureEventsForEquipment,
   calculateEquipmentAnalytics,
+  addFileAssociation,
+  removeFileAssociation,
+  getFileAssociationsForEquipment,
+  getFileAssociationsForFile,
+  generateSampleAnalyticsData,
   Equipment,
   MaintenanceLog,
   FailureEvent,
+  FileEquipmentAssociation,
 } from './database';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit for reading files
@@ -189,10 +203,12 @@ export function setupIpcHandlers(): void {
         title: 'Add Files to Workspace',
         properties: ['openFile', 'multiSelections'],
         filters: [
-          { name: 'Documents', extensions: ['pdf', 'md', 'txt', 'markdown'] },
+          { name: 'All Supported', extensions: ['pdf', 'md', 'txt', 'markdown', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'tiff', 'tif'] },
+          { name: 'Documents', extensions: ['pdf', 'md', 'txt', 'markdown', 'doc', 'docx'] },
+          { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'tiff', 'tif'] },
           { name: 'PDF Files', extensions: ['pdf'] },
-          { name: 'Markdown Files', extensions: ['md', 'markdown'] },
-          { name: 'Text Files', extensions: ['txt'] },
+          { name: 'Word Documents', extensions: ['doc', 'docx'] },
+          { name: 'All Files', extensions: ['*'] },
         ],
       });
 
@@ -228,6 +244,34 @@ export function setupIpcHandlers(): void {
     } catch (error) {
       console.error('Failed to add files:', error);
       throw new Error(`Failed to add files: ${error}`);
+    }
+  });
+
+  // Delete file from workspace
+  ipcMain.handle(IPC_CHANNELS.DELETE_FILE, async (_event, filePath: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // Security check - don't allow deleting outside of reasonable paths
+      if (!filePath || filePath.length < 10) {
+        return { success: false, error: 'Invalid file path' };
+      }
+      
+      const stats = await fs.stat(filePath);
+      
+      if (stats.isDirectory()) {
+        // For directories, use recursive delete
+        await fs.rm(filePath, { recursive: true, force: true });
+      } else {
+        await fs.unlink(filePath);
+      }
+      
+      console.log('[IPC] Deleted:', filePath);
+      return { success: true };
+    } catch (error) {
+      console.error('[IPC] Delete failed:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete file' 
+      };
     }
   });
 
@@ -481,4 +525,154 @@ export function setupIpcHandlers(): void {
       }
     }
   );
+
+  // ==========================================
+  // Vision (GPT-4V Labeling + Exploded View)
+  // ==========================================
+
+  // Label detected regions with GPT-4V
+  ipcMain.handle(
+    IPC_CHANNELS.VISION_LABEL_REGIONS,
+    async (_event, request: { imageBase64: string; regions: CVDetectedRegion[]; context?: string }): Promise<LabelingResult> => {
+      try {
+        console.log('[IPC] Labeling regions with GPT-4V:', request.regions.length, 'regions');
+        const result = await labelDetectedRegions(request.imageBase64, request.regions, request.context);
+        return result;
+      } catch (error) {
+        console.error('[IPC] Error labeling regions:', error);
+        return {
+          success: false,
+          components: [],
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    }
+  );
+
+  // Generate exploded view diagram with DALL-E 3
+  ipcMain.handle(
+    IPC_CHANNELS.VISION_GENERATE_EXPLODED,
+    async (_event, request: GenerateExplodedRequest): Promise<GenerateExplodedResult> => {
+      try {
+        console.log('[IPC] Generating exploded view for:', request.components.length, 'components');
+        const result = await generateExplodedView(request.components, request.summary, {
+          whiteBackground: request.whiteBackground,
+          showLabels: request.showLabels,
+          style: request.style,
+        });
+        return result;
+      } catch (error) {
+        console.error('[IPC] Error generating exploded view:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    }
+  );
+
+  // ==========================================
+  // CSV Import/Export
+  // ==========================================
+
+  // Import equipment from CSV
+  ipcMain.handle(IPC_CHANNELS.CSV_IMPORT_EQUIPMENT, async (): Promise<CSVImportResult> => {
+    try {
+      console.log('[IPC] Importing equipment from CSV');
+      const result = await importEquipmentCSV();
+      console.log('[IPC] CSV import result:', result.imported, 'imported,', result.skipped, 'skipped');
+      return result;
+    } catch (error) {
+      console.error('[IPC] Error importing CSV:', error);
+      return {
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: [{ row: 0, field: '', message: error instanceof Error ? error.message : 'Unknown error' }],
+      };
+    }
+  });
+
+  // Export equipment to CSV
+  ipcMain.handle(IPC_CHANNELS.CSV_EXPORT_EQUIPMENT, async (_event, options?: CSVExportOptions): Promise<{ success: boolean; path?: string; error?: string }> => {
+    try {
+      console.log('[IPC] Exporting equipment to CSV');
+      const result = await exportEquipmentCSV(options || {});
+      return result;
+    } catch (error) {
+      console.error('[IPC] Error exporting equipment CSV:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  // Export maintenance logs to CSV
+  ipcMain.handle(IPC_CHANNELS.CSV_EXPORT_LOGS, async (_event, equipmentId?: string, options?: CSVExportOptions): Promise<{ success: boolean; path?: string; error?: string }> => {
+    try {
+      console.log('[IPC] Exporting logs to CSV', equipmentId ? `for equipment ${equipmentId}` : 'for all equipment');
+      const result = await exportLogsCSV(equipmentId, options || {});
+      return result;
+    } catch (error) {
+      console.error('[IPC] Error exporting logs CSV:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  // Get equipment CSV template
+  ipcMain.handle(IPC_CHANNELS.CSV_GET_TEMPLATE, async (): Promise<string> => {
+    return getEquipmentCSVTemplate();
+  });
+
+  // ==========================================
+  // File-Equipment Associations
+  // ==========================================
+
+  // Add file association
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_ADD, async (
+    _event, 
+    data: Omit<FileEquipmentAssociation, 'id' | 'createdAt'>
+  ): Promise<FileEquipmentAssociation> => {
+    console.log('[IPC] Adding file association:', data.filePath, 'to equipment:', data.equipmentId);
+    return addFileAssociation(data);
+  });
+
+  // Remove file association
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_REMOVE, async (
+    _event, 
+    equipmentId: string, 
+    filePath: string
+  ): Promise<boolean> => {
+    console.log('[IPC] Removing file association:', filePath, 'from equipment:', equipmentId);
+    return removeFileAssociation(equipmentId, filePath);
+  });
+
+  // Get file associations for equipment
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_GET_FOR_EQUIPMENT, async (
+    _event, 
+    equipmentId: string
+  ): Promise<FileEquipmentAssociation[]> => {
+    return getFileAssociationsForEquipment(equipmentId);
+  });
+
+  // Get file associations for file
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_GET_FOR_FILE, async (
+    _event, 
+    filePath: string
+  ): Promise<FileEquipmentAssociation[]> => {
+    return getFileAssociationsForFile(filePath);
+  });
+
+  // ==========================================
+  // Sample Data Generation
+  // ==========================================
+
+  // Generate sample analytics data for testing
+  ipcMain.handle(IPC_CHANNELS.GENERATE_SAMPLE_ANALYTICS, async (
+    _event,
+    equipmentId: string
+  ): Promise<{ failuresCreated: number; logsCreated: number }> => {
+    console.log('[IPC] Generating sample analytics data for equipment:', equipmentId);
+    const result = generateSampleAnalyticsData(equipmentId);
+    console.log('[IPC] Generated', result.failuresCreated, 'failures and', result.logsCreated, 'logs');
+    return result;
+  });
 }

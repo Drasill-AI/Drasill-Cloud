@@ -135,6 +135,21 @@ function initializeSchema(): void {
     CREATE INDEX IF NOT EXISTS idx_maintenance_logs_started ON maintenance_logs(started_at);
     CREATE INDEX IF NOT EXISTS idx_failure_events_equipment ON failure_events(equipment_id);
     CREATE INDEX IF NOT EXISTS idx_failure_events_occurred ON failure_events(occurred_at);
+
+    -- File-Equipment Associations table
+    CREATE TABLE IF NOT EXISTS file_equipment_associations (
+      id TEXT PRIMARY KEY,
+      equipment_id TEXT NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
+      file_path TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      file_type TEXT DEFAULT 'other' CHECK(file_type IN ('manual', 'image', 'schematic', 'document', 'other')),
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(equipment_id, file_path)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_file_assoc_equipment ON file_equipment_associations(equipment_id);
+    CREATE INDEX IF NOT EXISTS idx_file_assoc_path ON file_equipment_associations(file_path);
   `);
 }
 
@@ -392,6 +407,76 @@ function mapRowToFailureEvent(row: Record<string, unknown>): FailureEvent {
   };
 }
 
+// ============ File-Equipment Associations CRUD ============
+
+export interface FileEquipmentAssociation {
+  id: string;
+  equipmentId: string;
+  filePath: string;
+  fileName: string;
+  fileType: 'manual' | 'image' | 'schematic' | 'document' | 'other';
+  notes: string | null;
+  createdAt: string;
+}
+
+export function addFileAssociation(data: Omit<FileEquipmentAssociation, 'id' | 'createdAt'>): FileEquipmentAssociation {
+  const db = getDatabase();
+  const id = generateId();
+  const now = new Date().toISOString();
+
+  const stmt = db.prepare(`
+    INSERT INTO file_equipment_associations (id, equipment_id, file_path, file_name, file_type, notes, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  stmt.run(
+    id,
+    data.equipmentId,
+    data.filePath,
+    data.fileName,
+    data.fileType,
+    data.notes || null,
+    now
+  );
+
+  return {
+    id,
+    ...data,
+    notes: data.notes || null,
+    createdAt: now,
+  };
+}
+
+export function removeFileAssociation(equipmentId: string, filePath: string): boolean {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM file_equipment_associations WHERE equipment_id = ? AND file_path = ?').run(equipmentId, filePath);
+  return result.changes > 0;
+}
+
+export function getFileAssociationsForEquipment(equipmentId: string): FileEquipmentAssociation[] {
+  const db = getDatabase();
+  const rows = db.prepare('SELECT * FROM file_equipment_associations WHERE equipment_id = ? ORDER BY created_at DESC').all(equipmentId) as Record<string, unknown>[];
+  return rows.map(mapRowToFileAssociation);
+}
+
+export function getFileAssociationsForFile(filePath: string): FileEquipmentAssociation[] {
+  const db = getDatabase();
+  const rows = db.prepare('SELECT * FROM file_equipment_associations WHERE file_path = ?').all(filePath) as Record<string, unknown>[];
+  return rows.map(mapRowToFileAssociation);
+}
+
+function mapRowToFileAssociation(row: Record<string, unknown>): FileEquipmentAssociation {
+  return {
+    id: row.id as string,
+    equipmentId: row.equipment_id as string,
+    filePath: row.file_path as string,
+    fileName: row.file_name as string,
+    fileType: row.file_type as FileEquipmentAssociation['fileType'],
+    notes: row.notes as string | null,
+    createdAt: row.created_at as string,
+  };
+}
+
 // ============ Analytics Calculations ============
 
 export function calculateEquipmentAnalytics(equipmentId: string): EquipmentAnalytics {
@@ -475,6 +560,71 @@ export function calculateEquipmentAnalytics(equipmentId: string): EquipmentAnaly
     lastMaintenanceDate,
     lastMaintenanceType,
     predictedNextMaintenance,
+  };
+}
+
+/**
+ * Generate sample failure events and maintenance logs for testing analytics
+ */
+export function generateSampleAnalyticsData(equipmentId: string): { 
+  failuresCreated: number; 
+  logsCreated: number;
+} {
+  const now = new Date();
+  
+  // Generate 5 failure events over the past 6 months
+  const failureData = [
+    { daysAgo: 180, rootCause: 'Motor overheating - cooling fan failure', resolvedHoursLater: 4 },
+    { daysAgo: 120, rootCause: 'Hydraulic leak in main cylinder', resolvedHoursLater: 8 },
+    { daysAgo: 75, rootCause: 'Electrical short in control panel', resolvedHoursLater: 2 },
+    { daysAgo: 30, rootCause: 'Belt slippage causing power loss', resolvedHoursLater: 1 },
+    { daysAgo: 7, rootCause: 'Sensor malfunction - replaced proximity sensor', resolvedHoursLater: 3 },
+  ];
+
+  for (const failure of failureData) {
+    const occurredAt = new Date(now.getTime() - failure.daysAgo * 24 * 60 * 60 * 1000);
+    const resolvedAt = new Date(occurredAt.getTime() + failure.resolvedHoursLater * 60 * 60 * 1000);
+    
+    createFailureEvent({
+      equipmentId,
+      occurredAt: occurredAt.toISOString(),
+      resolvedAt: resolvedAt.toISOString(),
+      rootCause: failure.rootCause,
+      maintenanceLogId: null,
+    });
+  }
+
+  // Generate 8 maintenance logs over the past 6 months
+  const logData = [
+    { daysAgo: 175, type: 'corrective' as const, notes: 'Replaced cooling fan motor', duration: 120, technician: 'John Smith' },
+    { daysAgo: 150, type: 'preventive' as const, notes: 'Quarterly lubrication and belt inspection', duration: 45, technician: 'Mike Johnson' },
+    { daysAgo: 115, type: 'corrective' as const, notes: 'Repaired hydraulic cylinder seal', duration: 240, technician: 'John Smith' },
+    { daysAgo: 90, type: 'inspection' as const, notes: 'Annual safety inspection - passed', duration: 60, technician: 'Sarah Williams' },
+    { daysAgo: 70, type: 'emergency' as const, notes: 'Emergency repair of control panel wiring', duration: 90, technician: 'Mike Johnson' },
+    { daysAgo: 45, type: 'preventive' as const, notes: 'Oil change and filter replacement', duration: 30, technician: 'John Smith' },
+    { daysAgo: 25, type: 'corrective' as const, notes: 'Belt replacement and tensioner adjustment', duration: 60, technician: 'Mike Johnson' },
+    { daysAgo: 5, type: 'corrective' as const, notes: 'Sensor replacement and calibration', duration: 45, technician: 'Sarah Williams' },
+  ];
+
+  for (const log of logData) {
+    const startedAt = new Date(now.getTime() - log.daysAgo * 24 * 60 * 60 * 1000);
+    const completedAt = new Date(startedAt.getTime() + log.duration * 60 * 1000);
+    
+    createMaintenanceLog({
+      equipmentId,
+      type: log.type,
+      startedAt: startedAt.toISOString(),
+      completedAt: completedAt.toISOString(),
+      durationMinutes: log.duration,
+      technician: log.technician,
+      partsUsed: null,
+      notes: log.notes,
+    });
+  }
+
+  return {
+    failuresCreated: failureData.length,
+    logsCreated: logData.length,
   };
 }
 

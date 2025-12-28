@@ -11,6 +11,13 @@ import type {
   EquipmentAnalytics,
   SchematicToolCall,
   SchematicToolResponse,
+  CVDetectedRegion,
+  LabelingResult,
+  GenerateExplodedRequest,
+  GenerateExplodedResult,
+  CSVImportResult,
+  CSVExportOptions,
+  FileEquipmentAssociation,
 } from '@drasill/shared';
 
 interface ElectronAPI {
@@ -21,6 +28,7 @@ interface ElectronAPI {
   readWordFile: (path: string) => Promise<{ path: string; content: string }>;
   stat: (path: string) => Promise<FileStat>;
   addFiles: (workspacePath: string) => Promise<{ added: number; cancelled: boolean }>;
+  deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
   onMenuOpenWorkspace: (callback: () => void) => () => void;
   onMenuCloseTab: (callback: () => void) => () => void;
   onMenuCommandPalette: (callback: () => void) => () => void;
@@ -66,6 +74,21 @@ interface ElectronAPI {
   // Schematics API
   processSchematicToolCall: (toolCall: SchematicToolCall) => Promise<SchematicToolResponse>;
   getSchematicImage: (imagePath: string) => Promise<string>;
+  // Vision API (CV Labeling + Exploded View)
+  labelDetectedRegions: (imageBase64: string, regions: CVDetectedRegion[], context?: string) => Promise<LabelingResult>;
+  generateExplodedView: (request: GenerateExplodedRequest) => Promise<GenerateExplodedResult>;
+  // CSV Import/Export API
+  importEquipmentCSV: () => Promise<CSVImportResult>;
+  exportEquipmentCSV: (options?: CSVExportOptions) => Promise<{ success: boolean; path?: string; error?: string }>;
+  exportLogsCSV: (equipmentId?: string, options?: CSVExportOptions) => Promise<{ success: boolean; path?: string; error?: string }>;
+  getEquipmentCSVTemplate: () => Promise<string>;
+  // File-Equipment Associations API
+  addFileAssociation: (data: Omit<FileEquipmentAssociation, 'id' | 'createdAt'>) => Promise<FileEquipmentAssociation>;
+  removeFileAssociation: (equipmentId: string, filePath: string) => Promise<boolean>;
+  getFileAssociationsForEquipment: (equipmentId: string) => Promise<FileEquipmentAssociation[]>;
+  getFileAssociationsForFile: (filePath: string) => Promise<FileEquipmentAssociation[]>;
+  // Sample Data Generation API
+  generateSampleAnalyticsData: (equipmentId: string) => Promise<{ failuresCreated: number; logsCreated: number }>;
 }
 
 declare global {

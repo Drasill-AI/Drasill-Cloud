@@ -4,6 +4,9 @@ import styles from './TopBar.module.css';
 
 export function TopBar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const { 
@@ -12,7 +15,37 @@ export function TopBar() {
     setSelectedEquipment,
     detectedEquipment,
     setEquipmentModalOpen,
+    loadEquipment,
+    showToast,
+    openEquipmentViewer,
   } = useAppStore();
+
+  // Handle equipment deletion
+  const handleDeleteEquipment = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // Prevent selecting the equipment
+    
+    if (!confirm('Delete this equipment? This will also delete all associated logs.')) {
+      return;
+    }
+    
+    setDeletingId(id);
+    try {
+      const success = await window.electronAPI.deleteEquipment(id);
+      if (success) {
+        showToast('success', 'Equipment deleted');
+        if (selectedEquipmentId === id) {
+          setSelectedEquipment(null);
+        }
+        loadEquipment();
+      } else {
+        showToast('error', 'Failed to delete equipment');
+      }
+    } catch (err) {
+      showToast('error', 'Failed to delete equipment');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const selectedEquipment = equipment.find(eq => eq.id === selectedEquipmentId);
 
@@ -67,19 +100,76 @@ export function TopBar() {
             <div className={styles.dropdownMenu}>
               <div className={styles.dropdownHeader}>
                 <span className={styles.dropdownTitle}>Equipment List</span>
-                <button 
-                  className={styles.addEquipmentButton}
-                  onClick={() => {
-                    setEquipmentModalOpen(true);
-                    setIsDropdownOpen(false);
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  Add New
-                </button>
+                <div className={styles.headerButtons}>
+                  <button 
+                    className={styles.csvButton}
+                    onClick={async () => {
+                      setIsImporting(true);
+                      try {
+                        const result = await window.electronAPI.importEquipmentCSV();
+                        if (result.success) {
+                          showToast('success', `Imported ${result.imported} equipment${result.skipped > 0 ? `, ${result.skipped} skipped` : ''}`);
+                          loadEquipment();
+                        } else if (result.errors.length > 0) {
+                          showToast('error', result.errors[0].message);
+                        }
+                      } catch (err) {
+                        showToast('error', 'Failed to import CSV');
+                      } finally {
+                        setIsImporting(false);
+                      }
+                    }}
+                    disabled={isImporting}
+                    title="Import equipment from CSV"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    {isImporting ? 'Importing...' : 'Import CSV'}
+                  </button>
+                  <button 
+                    className={styles.csvButton}
+                    onClick={async () => {
+                      setIsExporting(true);
+                      try {
+                        const result = await window.electronAPI.exportEquipmentCSV();
+                        if (result.success) {
+                          showToast('success', 'Equipment exported successfully');
+                        } else if (result.error) {
+                          showToast('error', result.error);
+                        }
+                      } catch (err) {
+                        showToast('error', 'Failed to export CSV');
+                      } finally {
+                        setIsExporting(false);
+                      }
+                    }}
+                    disabled={isExporting || equipment.length === 0}
+                    title="Export equipment to CSV"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    {isExporting ? 'Exporting...' : 'Export CSV'}
+                  </button>
+                  <button 
+                    className={styles.addEquipmentButton}
+                    onClick={() => {
+                      setEquipmentModalOpen(true);
+                      setIsDropdownOpen(false);
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    Add New
+                  </button>
+                </div>
               </div>
 
               <div className={styles.dropdownList}>
@@ -106,27 +196,43 @@ export function TopBar() {
                   </div>
                 ) : (
                   equipment.map(eq => (
-                    <button
+                    <div
                       key={eq.id}
                       className={`${styles.equipmentItem} ${selectedEquipmentId === eq.id ? styles.selected : ''}`}
-                      onClick={() => {
-                        setSelectedEquipment(eq.id ?? null);
-                        setIsDropdownOpen(false);
-                      }}
                     >
-                      <div className={`${styles.equipmentStatus} ${styles[getEquipmentHealth(eq.id)]}`} />
-                      <div className={styles.equipmentDetails}>
-                        <div className={styles.equipmentMakeModel}>
-                          {eq.make} {eq.model}
+                      <button
+                        className={styles.equipmentSelectButton}
+                        onClick={() => {
+                          openEquipmentViewer(eq.id!);
+                          setSelectedEquipment(eq.id ?? null);
+                          setIsDropdownOpen(false);
+                        }}
+                      >
+                        <div className={`${styles.equipmentStatus} ${styles[getEquipmentHealth(eq.id)]}`} />
+                        <div className={styles.equipmentDetails}>
+                          <div className={styles.equipmentMakeModel}>
+                            {eq.name || `${eq.make} ${eq.model}`}
+                          </div>
+                          {eq.serialNumber && (
+                            <div className={styles.equipmentSerial}>SN: {eq.serialNumber}</div>
+                          )}
                         </div>
-                        {eq.serialNumber && (
-                          <div className={styles.equipmentSerial}>SN: {eq.serialNumber}</div>
+                        {detectedEquipment?.id === eq.id && (
+                          <span className={styles.detectedBadge}>Detected</span>
                         )}
-                      </div>
-                      {detectedEquipment?.id === eq.id && (
-                        <span className={styles.detectedBadge}>Detected</span>
-                      )}
-                    </button>
+                      </button>
+                      <button
+                        className={styles.deleteEquipmentButton}
+                        onClick={(e) => handleDeleteEquipment(e, eq.id!)}
+                        disabled={deletingId === eq.id}
+                        title="Delete equipment"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                      </button>
+                    </div>
                   ))
                 )}
               </div>

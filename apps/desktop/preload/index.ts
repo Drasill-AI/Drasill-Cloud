@@ -13,6 +13,13 @@ import {
   EquipmentAnalytics,
   SchematicToolCall,
   SchematicToolResponse,
+  CVDetectedRegion,
+  LabelingResult,
+  GenerateExplodedRequest,
+  GenerateExplodedResult,
+  CSVImportResult,
+  CSVExportOptions,
+  FileEquipmentAssociation,
 } from '@drasill/shared';
 
 /**
@@ -66,6 +73,13 @@ const api = {
    */
   addFiles: (workspacePath: string): Promise<{ added: number; cancelled: boolean }> => {
     return ipcRenderer.invoke(IPC_CHANNELS.ADD_FILES, workspacePath);
+  },
+
+  /**
+   * Delete file or directory from workspace
+   */
+  deleteFile: (filePath: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.DELETE_FILE, filePath);
   },
 
   /**
@@ -355,6 +369,103 @@ const api = {
    */
   getSchematicImage: (imagePath: string): Promise<string> => {
     return ipcRenderer.invoke(IPC_CHANNELS.SCHEMATIC_GET_IMAGE, imagePath);
+  },
+
+  // ==========================================
+  // Vision API (CV Labeling + Exploded View)
+  // ==========================================
+
+  /**
+   * Label detected regions using GPT-4V
+   */
+  labelDetectedRegions: (
+    imageBase64: string, 
+    regions: CVDetectedRegion[], 
+    context?: string
+  ): Promise<LabelingResult> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.VISION_LABEL_REGIONS, { imageBase64, regions, context });
+  },
+
+  /**
+   * Generate exploded view diagram using DALL-E 3
+   */
+  generateExplodedView: (request: GenerateExplodedRequest): Promise<GenerateExplodedResult> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.VISION_GENERATE_EXPLODED, request);
+  },
+
+  // ==========================================
+  // CSV Import/Export API
+  // ==========================================
+
+  /**
+   * Import equipment from CSV file
+   */
+  importEquipmentCSV: (): Promise<CSVImportResult> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CSV_IMPORT_EQUIPMENT);
+  },
+
+  /**
+   * Export equipment to CSV file
+   */
+  exportEquipmentCSV: (options?: CSVExportOptions): Promise<{ success: boolean; path?: string; error?: string }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CSV_EXPORT_EQUIPMENT, options);
+  },
+
+  /**
+   * Export maintenance logs to CSV file
+   */
+  exportLogsCSV: (equipmentId?: string, options?: CSVExportOptions): Promise<{ success: boolean; path?: string; error?: string }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CSV_EXPORT_LOGS, equipmentId, options);
+  },
+
+  /**
+   * Get CSV template for equipment import
+   */
+  getEquipmentCSVTemplate: (): Promise<string> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CSV_GET_TEMPLATE);
+  },
+
+  // ==========================================
+  // File-Equipment Associations API
+  // ==========================================
+
+  /**
+   * Add file association to equipment
+   */
+  addFileAssociation: (data: Omit<FileEquipmentAssociation, 'id' | 'createdAt'>): Promise<FileEquipmentAssociation> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FILE_ASSOC_ADD, data);
+  },
+
+  /**
+   * Remove file association from equipment
+   */
+  removeFileAssociation: (equipmentId: string, filePath: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FILE_ASSOC_REMOVE, equipmentId, filePath);
+  },
+
+  /**
+   * Get all file associations for an equipment
+   */
+  getFileAssociationsForEquipment: (equipmentId: string): Promise<FileEquipmentAssociation[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FILE_ASSOC_GET_FOR_EQUIPMENT, equipmentId);
+  },
+
+  /**
+   * Get all equipment associations for a file
+   */
+  getFileAssociationsForFile: (filePath: string): Promise<FileEquipmentAssociation[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FILE_ASSOC_GET_FOR_FILE, filePath);
+  },
+
+  // ==========================================
+  // Sample Data Generation API
+  // ==========================================
+
+  /**
+   * Generate sample failure events and maintenance logs for testing analytics
+   */
+  generateSampleAnalyticsData: (equipmentId: string): Promise<{ failuresCreated: number; logsCreated: number }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.GENERATE_SAMPLE_ANALYTICS, equipmentId);
   },
 };
 

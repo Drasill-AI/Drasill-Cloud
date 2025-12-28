@@ -94,6 +94,45 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(0, 0, 0, 0.2);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.headerButtons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.csvButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.csvButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.csvButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.csvButton svg {
+  width: 10px;
+  height: 10px;
 }
 
 .dropdownTitle {
@@ -136,13 +175,11 @@
 .equipmentItem {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 4px;
+  padding: 4px 8px 4px 12px;
   background: transparent;
   border: none;
   width: 100%;
-  text-align: left;
-  cursor: pointer;
   transition: background 0.15s ease;
 }
 
@@ -156,6 +193,82 @@
 
 .equipmentItem.selected .equipmentMakeModel {
   color: var(--accent);
+}
+
+.equipmentSelectButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  padding: 6px 4px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.deleteEquipmentButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.viewEquipmentButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.viewEquipmentButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.equipmentItem:hover .viewEquipmentButton {
+  opacity: 1;
+}
+
+.viewEquipmentButton:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.equipmentItem:hover .deleteEquipmentButton {
+  opacity: 1;
+}
+
+.deleteEquipmentButton:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.deleteEquipmentButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deleteEquipmentButton svg {
+  width: 14px;
+  height: 14px;
 }
 
 .equipmentDetails {
