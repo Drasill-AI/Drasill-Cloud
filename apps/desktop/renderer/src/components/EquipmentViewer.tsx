@@ -10,6 +10,7 @@ import {
   FailureEvent, 
   EquipmentAnalytics,
   FileEquipmentAssociation,
+  WorkOrder,
 } from '@drasill/shared';
 import styles from './EquipmentViewer.module.css';
 
@@ -18,13 +19,14 @@ interface EquipmentViewerProps {
 }
 
 export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
-  const { equipment, showToast, openFile, setLogModalOpen, setEditingLog, refreshLogs, logsRefreshTrigger } = useAppStore();
+  const { equipment, showToast, openFile, setLogModalOpen, setEditingLog, refreshLogs, logsRefreshTrigger, setWorkOrderModalOpen, workOrdersRefreshTrigger, openWorkOrderViewer, setSelectedEquipment } = useAppStore();
   
-  const [activeSection, setActiveSection] = useState<'overview' | 'logs' | 'files' | 'analytics'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'logs' | 'files' | 'analytics' | 'workorders'>('overview');
   const [logs, setLogs] = useState<MaintenanceLog[]>([]);
   const [failureEvents, setFailureEvents] = useState<FailureEvent[]>([]);
   const [analytics, setAnalytics] = useState<EquipmentAnalytics | null>(null);
   const [associatedFiles, setAssociatedFiles] = useState<FileEquipmentAssociation[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTaggingFile, setIsTaggingFile] = useState(false);
 
@@ -36,17 +38,19 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
     
     setIsLoading(true);
     try {
-      const [logsData, failuresData, analyticsData, filesData] = await Promise.all([
+      const [logsData, failuresData, analyticsData, filesData, workOrdersData] = await Promise.all([
         window.electronAPI.getMaintenanceLogsByEquipment(equipmentId),
         window.electronAPI.getFailureEvents(equipmentId),
         window.electronAPI.getEquipmentAnalytics(equipmentId),
         window.electronAPI.getFileAssociationsForEquipment(equipmentId),
+        window.electronAPI.getWorkOrdersByEquipment(equipmentId),
       ]);
       
       setLogs(logsData);
       setFailureEvents(failuresData);
       setAnalytics(analyticsData[0] || null);
       setAssociatedFiles(filesData);
+      setWorkOrders(workOrdersData);
     } catch (error) {
       console.error('Error loading equipment data:', error);
       showToast('error', 'Failed to load equipment data');
@@ -57,7 +61,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
 
   useEffect(() => {
     loadData();
-  }, [loadData, logsRefreshTrigger]);
+  }, [loadData, logsRefreshTrigger, workOrdersRefreshTrigger]);
 
   // Generate sample analytics data
   const handleGenerateSampleData = async () => {
@@ -317,6 +321,16 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
             <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
           Analytics
+        </button>
+        <button 
+          className={`${styles.tab} ${activeSection === 'workorders' ? styles.active : ''}`}
+          onClick={() => setActiveSection('workorders')}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+          Work Orders ({workOrders.filter(wo => wo.status !== 'completed' && wo.status !== 'cancelled').length})
         </button>
       </div>
 
@@ -687,6 +701,74 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Work Orders Section */}
+            {activeSection === 'workorders' && (
+              <div className={styles.workOrdersSection}>
+                <div className={styles.sectionHeader}>
+                  <h3>Work Orders</h3>
+                  <button 
+                    className={styles.addButton}
+                    onClick={() => {
+                      setSelectedEquipment(equipmentId);
+                      setWorkOrderModalOpen(true);
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    New Work Order
+                  </button>
+                </div>
+
+                {workOrders.length === 0 ? (
+                  <div className={styles.emptyState}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 11l3 3L22 4" />
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                    <p>No work orders for this equipment</p>
+                    <button 
+                      className={styles.createFirstButton}
+                      onClick={() => {
+                        setSelectedEquipment(equipmentId);
+                        setWorkOrderModalOpen(true);
+                      }}
+                    >
+                      Create First Work Order
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.workOrdersList}>
+                    {workOrders.map(wo => (
+                      <div 
+                        key={wo.id} 
+                        className={styles.workOrderCard}
+                        onClick={() => wo.id && openWorkOrderViewer(wo.id)}
+                      >
+                        <div className={styles.woHeader}>
+                          <span className={styles.woNumber}>{wo.workOrderNumber}</span>
+                          <span className={`${styles.woStatus} ${styles[wo.status]}`}>
+                            {wo.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div className={styles.woTitle}>{wo.title}</div>
+                        <div className={styles.woMeta}>
+                          <span className={`${styles.woType} ${styles[wo.type]}`}>{wo.type}</span>
+                          <span className={`${styles.woPriority} ${styles[wo.priority]}`}>{wo.priority}</span>
+                          {wo.scheduledStart && (
+                            <span className={styles.woDate}>
+                              {formatDate(wo.scheduledStart)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>

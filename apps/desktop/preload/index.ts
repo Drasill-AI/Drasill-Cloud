@@ -20,6 +20,8 @@ import {
   CSVImportResult,
   CSVExportOptions,
   FileEquipmentAssociation,
+  WorkOrder,
+  WorkOrderTemplate,
 } from '@drasill/shared';
 
 /**
@@ -466,6 +468,103 @@ const api = {
    */
   generateSampleAnalyticsData: (equipmentId: string): Promise<{ failuresCreated: number; logsCreated: number }> => {
     return ipcRenderer.invoke(IPC_CHANNELS.GENERATE_SAMPLE_ANALYTICS, equipmentId);
+  },
+
+  // ==========================================
+  // Work Orders API
+  // ==========================================
+
+  /**
+   * Get all work orders
+   */
+  getAllWorkOrders: (): Promise<WorkOrder[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_GET_ALL);
+  },
+
+  /**
+   * Get single work order by ID
+   */
+  getWorkOrder: (id: string): Promise<WorkOrder | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_GET, id);
+  },
+
+  /**
+   * Add new work order
+   */
+  addWorkOrder: (workOrder: Omit<WorkOrder, 'id' | 'workOrderNumber' | 'maintenanceLogId' | 'createdAt' | 'updatedAt'>): Promise<WorkOrder> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_ADD, workOrder);
+  },
+
+  /**
+   * Update work order
+   */
+  updateWorkOrder: (id: string, data: Partial<Omit<WorkOrder, 'id' | 'workOrderNumber' | 'createdAt' | 'updatedAt'>>): Promise<WorkOrder | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_UPDATE, id, data);
+  },
+
+  /**
+   * Delete work order
+   */
+  deleteWorkOrder: (id: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_DELETE, id);
+  },
+
+  /**
+   * Get work orders for specific equipment
+   */
+  getWorkOrdersByEquipment: (equipmentId: string): Promise<WorkOrder[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_GET_BY_EQUIPMENT, equipmentId);
+  },
+
+  /**
+   * Complete a work order (creates maintenance log automatically)
+   */
+  completeWorkOrder: (
+    id: string, 
+    actualHours: number, 
+    notes?: string | null, 
+    createLog?: boolean
+  ): Promise<{ workOrder: WorkOrder; maintenanceLog?: MaintenanceLog } | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_COMPLETE, id, actualHours, notes, createLog);
+  },
+
+  // ==========================================
+  // Work Order Templates API
+  // ==========================================
+
+  /**
+   * Get all work order templates
+   */
+  getAllWorkOrderTemplates: (): Promise<WorkOrderTemplate[]> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_TEMPLATE_GET_ALL);
+  },
+
+  /**
+   * Get single template by ID
+   */
+  getWorkOrderTemplate: (id: string): Promise<WorkOrderTemplate | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_TEMPLATE_GET, id);
+  },
+
+  /**
+   * Add new template
+   */
+  addWorkOrderTemplate: (template: Omit<WorkOrderTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<WorkOrderTemplate> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_TEMPLATE_ADD, template);
+  },
+
+  /**
+   * Update template
+   */
+  updateWorkOrderTemplate: (id: string, data: Partial<Omit<WorkOrderTemplate, 'id' | 'createdAt' | 'updatedAt'>>): Promise<WorkOrderTemplate | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_TEMPLATE_UPDATE, id, data);
+  },
+
+  /**
+   * Delete template
+   */
+  deleteWorkOrderTemplate: (id: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_TEMPLATE_DELETE, id);
   },
 };
 

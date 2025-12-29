@@ -18,6 +18,10 @@ import type {
   CSVImportResult,
   CSVExportOptions,
   FileEquipmentAssociation,
+  WorkOrder,
+  WorkOrderFormData,
+  WorkOrderCompletionData,
+  WorkOrderTemplate,
 } from '@drasill/shared';
 
 interface ElectronAPI {
@@ -89,6 +93,21 @@ interface ElectronAPI {
   getFileAssociationsForFile: (filePath: string) => Promise<FileEquipmentAssociation[]>;
   // Sample Data Generation API
   generateSampleAnalyticsData: (equipmentId: string) => Promise<{ failuresCreated: number; logsCreated: number }>;
+  // Work Orders API
+  getAllWorkOrders: () => Promise<WorkOrder[]>;
+  getWorkOrder: (id: string) => Promise<WorkOrder | null>;
+  addWorkOrder: (data: WorkOrderFormData) => Promise<WorkOrder>;
+  updateWorkOrder: (id: string, data: Partial<WorkOrderFormData>) => Promise<WorkOrder | null>;
+  deleteWorkOrder: (id: string) => Promise<boolean>;
+  getWorkOrdersByEquipment: (equipmentId: string) => Promise<WorkOrder[]>;
+  completeWorkOrder: (id: string, data: WorkOrderCompletionData) => Promise<{ workOrder: WorkOrder; maintenanceLog?: MaintenanceLog }>;
+  // Work Order Templates API
+  getAllWorkOrderTemplates: () => Promise<WorkOrderTemplate[]>;
+  getWorkOrderTemplate: (id: string) => Promise<WorkOrderTemplate | null>;
+  addWorkOrderTemplate: (data: Omit<WorkOrderTemplate, 'id' | 'created_at' | 'updated_at'>) => Promise<WorkOrderTemplate>;
+  updateWorkOrderTemplate: (id: string, data: Partial<Omit<WorkOrderTemplate, 'id' | 'created_at' | 'updated_at'>>) => Promise<WorkOrderTemplate | null>;
+  deleteWorkOrderTemplate: (id: string) => Promise<boolean>;
+  createWorkOrderFromTemplate: (templateId: string, equipmentId: string) => Promise<WorkOrder>;
 }
 
 declare global {

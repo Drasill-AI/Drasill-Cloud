@@ -29,7 +29,7 @@ export interface Tab {
   /** Full file path (for file tabs) */
   path: string;
   /** File type for determining viewer */
-  type: 'text' | 'markdown' | 'pdf' | 'word' | 'schematic' | 'image' | 'equipment' | 'unknown';
+  type: 'text' | 'markdown' | 'pdf' | 'word' | 'schematic' | 'image' | 'equipment' | 'workorder' | 'workorders-list' | 'unknown';
   /** Whether the tab has unsaved changes */
   isDirty?: boolean;
   /** Scroll position to restore */
@@ -43,6 +43,8 @@ export interface Tab {
   schematicData?: SchematicData;
   /** Equipment ID (only for equipment tabs) */
   equipmentId?: string;
+  /** Work order ID (only for work order tabs) */
+  workOrderId?: string;
 }
 
 /**
@@ -163,6 +165,20 @@ export const IPC_CHANNELS = {
   FILE_ASSOC_GET_FOR_FILE: 'file-assoc-get-for-file',
   // Sample Data Generation
   GENERATE_SAMPLE_ANALYTICS: 'generate-sample-analytics',
+  // Work Orders
+  WORK_ORDER_GET_ALL: 'work-order-get-all',
+  WORK_ORDER_GET: 'work-order-get',
+  WORK_ORDER_ADD: 'work-order-add',
+  WORK_ORDER_UPDATE: 'work-order-update',
+  WORK_ORDER_DELETE: 'work-order-delete',
+  WORK_ORDER_GET_BY_EQUIPMENT: 'work-order-get-by-equipment',
+  WORK_ORDER_COMPLETE: 'work-order-complete',
+  // Work Order Templates
+  WORK_ORDER_TEMPLATE_GET_ALL: 'work-order-template-get-all',
+  WORK_ORDER_TEMPLATE_GET: 'work-order-template-get',
+  WORK_ORDER_TEMPLATE_ADD: 'work-order-template-add',
+  WORK_ORDER_TEMPLATE_UPDATE: 'work-order-template-update',
+  WORK_ORDER_TEMPLATE_DELETE: 'work-order-template-delete',
 } as const;
 
 /**
@@ -490,6 +506,119 @@ export interface FileEquipmentAssociation {
   fileType: 'manual' | 'image' | 'schematic' | 'document' | 'other';
   notes?: string | null;
   createdAt: string;
+}
+
+// ==========================================
+// Work Order Types
+// ==========================================
+
+/**
+ * Work order status values
+ */
+export type WorkOrderStatus = 'draft' | 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
+
+/**
+ * Work order priority values
+ */
+export type WorkOrderPriority = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Work order type values (same as maintenance log types)
+ */
+export type WorkOrderType = 'preventive' | 'corrective' | 'emergency' | 'inspection';
+
+/**
+ * Work order record
+ */
+export interface WorkOrder {
+  id?: string;
+  workOrderNumber: string;
+  equipmentId: string;
+  templateId?: string | null;
+  title: string;
+  description?: string | null;
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  status: WorkOrderStatus;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  actualStart?: string | null;
+  actualEnd?: string | null;
+  estimatedHours?: number | null;
+  actualHours?: number | null;
+  technician?: string | null;
+  partsRequired?: string | null; // JSON array (simple for now)
+  notes?: string | null;
+  maintenanceLogId?: string | null; // Linked log created on completion
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Work order form data (for creating/editing)
+ */
+export interface WorkOrderFormData {
+  equipmentId: string;
+  templateId?: string | null;
+  title: string;
+  description?: string | null;
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  estimatedHours?: number | null;
+  technician?: string | null;
+  partsRequired?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Work order completion data
+ */
+export interface WorkOrderCompletionData {
+  actualHours: number;
+  notes?: string | null;
+  createMaintenanceLog?: boolean; // Default true
+}
+
+/**
+ * Checklist item for templates
+ */
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  required: boolean;
+}
+
+/**
+ * Work order template record
+ */
+export interface WorkOrderTemplate {
+  id?: string;
+  name: string;
+  description?: string | null;
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  estimatedHours?: number | null;
+  partsRequired?: string | null; // JSON array
+  checklist?: string | null; // JSON array of ChecklistItem
+  equipmentType?: string | null; // Optional filter (e.g., "CAT D9")
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Work order template form data
+ */
+export interface WorkOrderTemplateFormData {
+  name: string;
+  description?: string | null;
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  estimatedHours?: number | null;
+  partsRequired?: string | null;
+  checklist?: ChecklistItem[];
+  equipmentType?: string | null;
 }
 
 // ==========================================

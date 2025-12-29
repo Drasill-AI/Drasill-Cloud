@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Tab, TreeNode, getFileType, ChatMessage, FileContext, PersistedState, Equipment, BottomPanelState, MaintenanceLog, SchematicToolCall, SchematicData } from '@drasill/shared';
+import { Tab, TreeNode, getFileType, ChatMessage, FileContext, PersistedState, Equipment, BottomPanelState, MaintenanceLog, SchematicToolCall, SchematicData, WorkOrder, WorkOrderTemplate } from '@drasill/shared';
 
 interface ToastMessage {
   id: string;
@@ -50,6 +50,15 @@ interface AppState {
   isEquipmentModalOpen: boolean;
   logsRefreshTrigger: number;
   editingLog: MaintenanceLog | null;
+
+  // Work Orders
+  workOrders: WorkOrder[];
+  workOrderTemplates: WorkOrderTemplate[];
+  isWorkOrderModalOpen: boolean;
+  isTemplateModalOpen: boolean;
+  editingWorkOrder: WorkOrder | null;
+  editingTemplate: WorkOrderTemplate | null;
+  workOrdersRefreshTrigger: number;
 
   // Bottom Panel
   bottomPanelState: BottomPanelState;
@@ -110,6 +119,17 @@ interface AppState {
   // Equipment viewer
   openEquipmentViewer: (equipmentId: string) => void;
 
+  // Work Order actions
+  loadWorkOrders: () => Promise<void>;
+  loadWorkOrderTemplates: () => Promise<void>;
+  setWorkOrderModalOpen: (open: boolean) => void;
+  setTemplateModalOpen: (open: boolean) => void;
+  setEditingWorkOrder: (workOrder: WorkOrder | null) => void;
+  setEditingTemplate: (template: WorkOrderTemplate | null) => void;
+  refreshWorkOrders: () => void;
+  openWorkOrderViewer: (workOrderId: string) => void;
+  openWorkOrdersPanel: () => void;
+
   // Connection status
   setOnlineStatus: (isOnline: boolean) => void;
 }
@@ -147,6 +167,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   isEquipmentModalOpen: false,
   logsRefreshTrigger: 0,
   editingLog: null,
+
+  // Work Orders state
+  workOrders: [],
+  workOrderTemplates: [],
+  isWorkOrderModalOpen: false,
+  isTemplateModalOpen: false,
+  editingWorkOrder: null,
+  editingTemplate: null,
+  workOrdersRefreshTrigger: 0,
 
   // Bottom panel state
   bottomPanelState: {
@@ -844,6 +873,119 @@ export const useAppStore = create<AppState>((set, get) => ({
   setOnlineStatus: (isOnline: boolean) => {
     set({ isOnline });
   },
+
+  // Work Order Actions
+  loadWorkOrders: async () => {
+    try {
+      const workOrders = await window.electronAPI.getAllWorkOrders();
+      set({ workOrders });
+    } catch (error) {
+      console.error('[Store] Failed to load work orders:', error);
+      get().showToast('error', 'Failed to load work orders');
+    }
+  },
+
+  loadWorkOrderTemplates: async () => {
+    try {
+      const workOrderTemplates = await window.electronAPI.getAllWorkOrderTemplates();
+      set({ workOrderTemplates });
+    } catch (error) {
+      console.error('[Store] Failed to load work order templates:', error);
+      get().showToast('error', 'Failed to load templates');
+    }
+  },
+
+  setWorkOrderModalOpen: (open: boolean) => {
+    set({ isWorkOrderModalOpen: open });
+    if (!open) {
+      set({ editingWorkOrder: null });
+    }
+  },
+
+  setTemplateModalOpen: (open: boolean) => {
+    set({ isTemplateModalOpen: open });
+    if (!open) {
+      set({ editingTemplate: null });
+    }
+  },
+
+  setEditingWorkOrder: (workOrder: WorkOrder | null) => {
+    set({ editingWorkOrder: workOrder });
+  },
+
+  setEditingTemplate: (template: WorkOrderTemplate | null) => {
+    set({ editingTemplate: template });
+  },
+
+  refreshWorkOrders: () => {
+    set((state) => ({ workOrdersRefreshTrigger: state.workOrdersRefreshTrigger + 1 }));
+    get().loadWorkOrders();
+  },
+
+  openWorkOrderViewer: (workOrderId: string) => {
+    const { workOrders, tabs } = get();
+    const workOrder = workOrders.find(wo => wo.id === workOrderId);
+    
+    if (!workOrder) {
+      get().showToast('error', 'Work order not found');
+      return;
+    }
+
+    // Check if tab already exists
+    const existingTab = tabs.find((t) => 
+      t.type === 'workorder' && t.workOrderId === workOrderId
+    );
+
+    if (existingTab) {
+      set({ activeTabId: existingTab.id });
+      return;
+    }
+
+    // Create new work order tab
+    const tabId = `workorder-${workOrderId}`;
+    const newTab: Tab = {
+      id: tabId,
+      name: `📋 ${workOrder.workOrderNumber}`,
+      path: '',
+      type: 'workorder',
+      workOrderId,
+    };
+
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: newTab.id,
+    }));
+
+    get().savePersistedState();
+  },
+
+  openWorkOrdersPanel: () => {
+    const { tabs } = get();
+
+    // Check if tab already exists
+    const existingTab = tabs.find((t) => t.type === 'workorders-list');
+
+    if (existingTab) {
+      set({ activeTabId: existingTab.id });
+      return;
+    }
+
+    // Create new work orders list tab
+    const tabId = 'workorders-list';
+    const newTab: Tab = {
+      id: tabId,
+      name: '📋 Work Orders',
+      path: '',
+      type: 'workorders-list',
+    };
+
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: newTab.id,
+    }));
+
+    get().savePersistedState();
+  },
 }));
 
 // Initialize on store creation
@@ -854,6 +996,8 @@ useAppStore.getState().loadPersistedState();
 // Initialize database and load equipment
 window.electronAPI.initDatabase().then(() => {
   useAppStore.getState().loadEquipment();
+  useAppStore.getState().loadWorkOrders();
+  useAppStore.getState().loadWorkOrderTemplates();
 });
 
 // Listen for chat tool executions to refresh data
@@ -866,5 +1010,9 @@ window.electronAPI.onChatToolExecuted((data) => {
   
   if (data.action === 'equipment_status_updated') {
     useAppStore.getState().loadEquipment();
+  }
+
+  if (data.action === 'work_order_created' || data.action === 'work_order_updated' || data.action === 'work_order_completed') {
+    useAppStore.getState().refreshWorkOrders();
   }
 });

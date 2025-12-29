@@ -7,6 +7,8 @@ import { WordViewer } from './WordViewer';
 import { SchematicViewer } from './SchematicViewer';
 import { ImageViewer } from './ImageViewer';
 import { EquipmentViewer } from './EquipmentViewer';
+import { WorkOrderViewer } from './WorkOrderViewer';
+import { WorkOrdersPanel } from './WorkOrdersPanel';
 import styles from './EditorPane.module.css';
 import logoImage from '../assets/logo.png';
 
@@ -111,6 +113,16 @@ export function EditorPane() {
   // Equipment viewer
   if (activeTab.type === 'equipment' && activeTab.equipmentId) {
     return <EquipmentViewer equipmentId={activeTab.equipmentId} />;
+  }
+
+  // Work Order viewer
+  if (activeTab.type === 'workorder' && activeTab.workOrderId) {
+    return <WorkOrderViewer workOrderId={activeTab.workOrderId} />;
+  }
+
+  // Work Orders list panel
+  if (activeTab.type === 'workorders-list') {
+    return <WorkOrdersPanel />;
   }
 
   // Monaco editor for text/markdown

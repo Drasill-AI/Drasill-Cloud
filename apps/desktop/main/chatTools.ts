@@ -14,7 +14,15 @@ import {
   calculateEquipmentAnalytics,
   Equipment,
   MaintenanceLog,
+  // Work Order imports
+  getAllWorkOrders,
+  getWorkOrder,
+  createWorkOrder,
+  updateWorkOrder,
+  getWorkOrdersForEquipment,
+  completeWorkOrder,
 } from './database';
+import type { WorkOrder, WorkOrderFormData } from '@drasill/shared';
 
 // ============ Tool Definitions ============
 
@@ -210,6 +218,123 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
       },
     },
   },
+  // ============ Work Order Tools ============
+  {
+    type: 'function',
+    function: {
+      name: 'get_work_orders',
+      description: 'Get a list of work orders, optionally filtered by status or equipment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          equipment_id: {
+            type: 'string',
+            description: 'Optional equipment ID to filter work orders.',
+          },
+          status: {
+            type: 'string',
+            enum: ['all', 'draft', 'open', 'in_progress', 'on_hold', 'completed', 'cancelled'],
+            description: 'Optional status filter. Default is "all".',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_work_order',
+      description: 'Create a new work order for a piece of equipment. Use this when the user wants to schedule or plan maintenance work.',
+      parameters: {
+        type: 'object',
+        properties: {
+          equipment_id: {
+            type: 'string',
+            description: 'The ID of the equipment this work order is for.',
+          },
+          title: {
+            type: 'string',
+            description: 'Brief title/description of the work to be done.',
+          },
+          type: {
+            type: 'string',
+            enum: ['preventive', 'corrective', 'emergency', 'inspection'],
+            description: 'The type of maintenance work.',
+          },
+          priority: {
+            type: 'string',
+            enum: ['low', 'medium', 'high', 'critical'],
+            description: 'Priority level. Default is "medium".',
+          },
+          description: {
+            type: 'string',
+            description: 'Detailed description of the work to be performed.',
+          },
+          scheduled_start: {
+            type: 'string',
+            description: 'ISO date for when the work should start. Optional.',
+          },
+          estimated_hours: {
+            type: 'number',
+            description: 'Estimated hours to complete the work.',
+          },
+          technician: {
+            type: 'string',
+            description: 'Name of the assigned technician. Optional.',
+          },
+        },
+        required: ['equipment_id', 'title', 'type'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'complete_work_order',
+      description: 'Mark a work order as completed. This will also create a maintenance log entry.',
+      parameters: {
+        type: 'object',
+        properties: {
+          work_order_id: {
+            type: 'string',
+            description: 'The ID of the work order to complete.',
+          },
+          actual_hours: {
+            type: 'number',
+            description: 'Actual hours spent on the work.',
+          },
+          notes: {
+            type: 'string',
+            description: 'Completion notes or observations.',
+          },
+        },
+        required: ['work_order_id', 'actual_hours'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_work_order_status',
+      description: 'Update the status of a work order (e.g., start work, put on hold, cancel).',
+      parameters: {
+        type: 'object',
+        properties: {
+          work_order_id: {
+            type: 'string',
+            description: 'The ID of the work order to update.',
+          },
+          new_status: {
+            type: 'string',
+            enum: ['open', 'in_progress', 'on_hold', 'cancelled'],
+            description: 'The new status for the work order.',
+          },
+        },
+        required: ['work_order_id', 'new_status'],
+      },
+    },
+  },
 ];
 
 // ============ Fuzzy Matching ============
@@ -348,6 +473,19 @@ export function executeTool(toolName: string, args: Record<string, unknown>): To
 
       case 'record_failure_event':
         return executeRecordFailureEvent(args);
+
+      // Work Order Tools
+      case 'get_work_orders':
+        return executeGetWorkOrders(args);
+
+      case 'create_work_order':
+        return executeCreateWorkOrder(args);
+
+      case 'complete_work_order':
+        return executeCompleteWorkOrder(args);
+
+      case 'update_work_order_status':
+        return executeUpdateWorkOrderStatus(args);
 
       default:
         return { success: false, error: `Unknown tool: ${toolName}` };
@@ -613,6 +751,177 @@ function executeRecordFailureEvent(args: Record<string, unknown>): ToolResult {
   };
 }
 
+// ============ Work Order Tool Implementations ============
+
+function executeGetWorkOrders(args: Record<string, unknown>): ToolResult {
+  const equipmentId = args.equipment_id as string | undefined;
+  const statusFilter = args.status as string | undefined;
+
+  let workOrders: WorkOrder[];
+  let contextMessage: string;
+
+  if (equipmentId) {
+    const equipment = getEquipment(equipmentId);
+    if (!equipment) {
+      return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+    }
+    workOrders = getWorkOrdersForEquipment(equipmentId);
+    contextMessage = `for ${equipment.make} ${equipment.model}`;
+  } else {
+    workOrders = getAllWorkOrders();
+    contextMessage = 'across all equipment';
+  }
+
+  // Filter by status if provided
+  if (statusFilter && statusFilter !== 'all') {
+    workOrders = workOrders.filter(wo => wo.status === statusFilter);
+  }
+
+  const summary = workOrders.map(wo => ({
+    id: wo.id,
+    workOrderNumber: wo.workOrderNumber,
+    title: wo.title,
+    type: wo.type,
+    priority: wo.priority,
+    status: wo.status,
+    scheduledStart: wo.scheduledStart,
+    equipmentId: wo.equipmentId,
+  }));
+
+  // Count by status
+  const statusCounts = {
+    open: workOrders.filter(wo => wo.status === 'open').length,
+    in_progress: workOrders.filter(wo => wo.status === 'in_progress').length,
+    on_hold: workOrders.filter(wo => wo.status === 'on_hold').length,
+  };
+
+  return {
+    success: true,
+    data: summary,
+    message: `Found ${workOrders.length} work orders ${contextMessage}. Active: ${statusCounts.open} open, ${statusCounts.in_progress} in progress, ${statusCounts.on_hold} on hold.`,
+  };
+}
+
+function executeCreateWorkOrder(args: Record<string, unknown>): ToolResult {
+  const equipmentId = args.equipment_id as string;
+  const equipment = getEquipment(equipmentId);
+
+  if (!equipment) {
+    return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+  }
+
+  const workOrderData = {
+    equipmentId,
+    templateId: null,
+    title: args.title as string,
+    type: args.type as WorkOrder['type'],
+    priority: (args.priority as WorkOrder['priority']) || 'medium',
+    status: 'open' as WorkOrder['status'],
+    description: (args.description as string) || null,
+    scheduledStart: (args.scheduled_start as string) || null,
+    scheduledEnd: null,
+    actualStart: null,
+    actualEnd: null,
+    estimatedHours: (args.estimated_hours as number) || null,
+    actualHours: null,
+    technician: (args.technician as string) || null,
+    partsRequired: null,
+    notes: null,
+  };
+
+  const workOrder = createWorkOrder(workOrderData);
+
+  return {
+    success: true,
+    data: workOrder,
+    message: `✅ Created work order ${workOrder.workOrderNumber} for ${equipment.make} ${equipment.model}: "${workOrderData.title}" (${workOrderData.type}, ${workOrderData.priority} priority)`,
+    actionTaken: 'work_order_created',
+  };
+}
+
+function executeCompleteWorkOrder(args: Record<string, unknown>): ToolResult {
+  const workOrderId = args.work_order_id as string;
+  const workOrder = getWorkOrder(workOrderId);
+
+  if (!workOrder) {
+    return { success: false, error: `Work order with ID "${workOrderId}" not found.` };
+  }
+
+  const equipment = getEquipment(workOrder.equipmentId);
+  const actualHours = args.actual_hours as number;
+  const notes = (args.notes as string) || null;
+
+  const result = completeWorkOrder(workOrderId, actualHours, notes, true);
+
+  if (!result) {
+    return { success: false, error: 'Failed to complete work order.' };
+  }
+
+  return {
+    success: true,
+    data: result,
+    message: `✅ Completed work order ${workOrder.workOrderNumber} for ${equipment?.make} ${equipment?.model}. Actual hours: ${actualHours}. Maintenance log created.`,
+    actionTaken: 'work_order_completed',
+  };
+}
+
+function executeUpdateWorkOrderStatus(args: Record<string, unknown>): ToolResult {
+  const workOrderId = args.work_order_id as string;
+  const newStatus = args.new_status as WorkOrder['status'];
+  
+  const workOrder = getWorkOrder(workOrderId);
+
+  if (!workOrder) {
+    return { success: false, error: `Work order with ID "${workOrderId}" not found.` };
+  }
+
+  const equipment = getEquipment(workOrder.equipmentId);
+
+  // Validate status transition
+  const validTransitions: Record<string, string[]> = {
+    draft: ['open', 'cancelled'],
+    open: ['in_progress', 'cancelled'],
+    in_progress: ['on_hold', 'completed', 'cancelled'],
+    on_hold: ['in_progress', 'cancelled'],
+  };
+
+  if (!validTransitions[workOrder.status]?.includes(newStatus)) {
+    return {
+      success: false,
+      error: `Cannot transition from "${workOrder.status}" to "${newStatus}". Valid next statuses: ${validTransitions[workOrder.status]?.join(', ') || 'none'}`,
+    };
+  }
+
+  const updates: Partial<WorkOrderFormData> & { status?: WorkOrder['status']; actualStart?: string } = {
+    status: newStatus,
+  };
+
+  // Set actualStart when starting work
+  if (newStatus === 'in_progress' && !workOrder.actualStart) {
+    updates.actualStart = new Date().toISOString();
+  }
+
+  const updated = updateWorkOrder(workOrderId, updates as Partial<WorkOrder>);
+
+  if (!updated) {
+    return { success: false, error: 'Failed to update work order.' };
+  }
+
+  const statusLabels: Record<string, string> = {
+    open: 'opened',
+    in_progress: 'started',
+    on_hold: 'put on hold',
+    cancelled: 'cancelled',
+  };
+
+  return {
+    success: true,
+    data: updated,
+    message: `✅ Work order ${workOrder.workOrderNumber} for ${equipment?.make} ${equipment?.model} has been ${statusLabels[newStatus] || newStatus}.`,
+    actionTaken: 'work_order_updated',
+  };
+}
+
 // ============ Context Builder ============
 
 /**
@@ -638,5 +947,16 @@ export function buildEquipmentContext(): string {
       }).join('\n')
     : '';
 
-  return `Registered Equipment (${equipment.length} items):\n${equipmentList}${recentLogsText}`;
+  // Get active work orders
+  const activeWorkOrders = getAllWorkOrders().filter(wo => 
+    wo.status === 'open' || wo.status === 'in_progress' || wo.status === 'on_hold'
+  );
+  const workOrdersText = activeWorkOrders.length > 0
+    ? '\n\nActive Work Orders:\n' + activeWorkOrders.slice(0, 5).map(wo => {
+        const eq = getEquipment(wo.equipmentId);
+        return `- ${wo.workOrderNumber}: ${wo.title} (${eq?.make} ${eq?.model}) - ${wo.status.replace('_', ' ')}, ${wo.priority} priority`;
+      }).join('\n')
+    : '';
+
+  return `Registered Equipment (${equipment.length} items):\n${equipmentList}${recentLogsText}${workOrdersText}`;
 }

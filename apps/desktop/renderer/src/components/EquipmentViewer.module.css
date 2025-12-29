@@ -699,6 +699,113 @@
   font-style: italic;
 }
 
+/* Work Orders Section */
+.workOrdersSection {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.workOrdersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workOrderCard {
+  padding: 16px;
+  background: var(--bg-tertiary, #252526);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.workOrderCard:hover {
+  background: var(--bg-hover, #2a2d2e);
+  border-color: var(--accent-color, #007acc);
+  transform: translateY(-1px);
+}
+
+.woHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.woNumber {
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-color, #007acc);
+}
+
+.woTitle {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 10px;
+}
+
+.woMeta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.woStatus,
+.woType,
+.woPriority {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Work Order Status */
+.woStatus.draft { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+.woStatus.open { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.woStatus.in_progress { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+.woStatus.on_hold { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+.woStatus.completed { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.woStatus.cancelled { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+/* Work Order Type */
+.woType.preventive { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.woType.corrective { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+.woType.emergency { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.woType.inspection { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+
+/* Work Order Priority */
+.woPriority.low { background: rgba(107, 114, 128, 0.15); color: #9ca3af; }
+.woPriority.medium { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+.woPriority.high { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+.woPriority.critical { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+.woDate {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #999999);
+}
+
+.createFirstButton {
+  padding: 10px 20px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.createFirstButton:hover {
+  background: #2563eb;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .header {

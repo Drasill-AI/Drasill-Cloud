@@ -46,10 +46,27 @@ import {
   getFileAssociationsForEquipment,
   getFileAssociationsForFile,
   generateSampleAnalyticsData,
+  // Work Orders
+  createWorkOrder,
+  getWorkOrder,
+  getAllWorkOrders,
+  getWorkOrdersForEquipment,
+  updateWorkOrder,
+  deleteWorkOrder,
+  completeWorkOrder,
+  // Work Order Templates
+  createWorkOrderTemplate,
+  getWorkOrderTemplate,
+  getAllWorkOrderTemplates,
+  updateWorkOrderTemplate,
+  deleteWorkOrderTemplate,
+
   Equipment,
   MaintenanceLog,
   FailureEvent,
   FileEquipmentAssociation,
+  WorkOrder,
+  WorkOrderTemplate,
 } from './database';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit for reading files
@@ -674,5 +691,107 @@ export function setupIpcHandlers(): void {
     const result = generateSampleAnalyticsData(equipmentId);
     console.log('[IPC] Generated', result.failuresCreated, 'failures and', result.logsCreated, 'logs');
     return result;
+  });
+
+  // ==========================================
+  // Work Orders
+  // ==========================================
+
+  // Get all work orders
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_GET_ALL, async (): Promise<WorkOrder[]> => {
+    return getAllWorkOrders();
+  });
+
+  // Get single work order
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_GET, async (_event, id: string): Promise<WorkOrder | null> => {
+    return getWorkOrder(id);
+  });
+
+  // Add work order
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_ADD, async (
+    _event, 
+    workOrder: Omit<WorkOrder, 'id' | 'workOrderNumber' | 'maintenanceLogId' | 'createdAt' | 'updatedAt'>
+  ): Promise<WorkOrder> => {
+    console.log('[IPC] Creating work order:', workOrder.title);
+    return createWorkOrder(workOrder);
+  });
+
+  // Update work order
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_UPDATE, async (
+    _event, 
+    id: string, 
+    data: Partial<Omit<WorkOrder, 'id' | 'workOrderNumber' | 'createdAt' | 'updatedAt'>>
+  ): Promise<WorkOrder | null> => {
+    console.log('[IPC] Updating work order:', id);
+    return updateWorkOrder(id, data);
+  });
+
+  // Delete work order
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_DELETE, async (_event, id: string): Promise<boolean> => {
+    console.log('[IPC] Deleting work order:', id);
+    return deleteWorkOrder(id);
+  });
+
+  // Get work orders for equipment
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_GET_BY_EQUIPMENT, async (
+    _event, 
+    equipmentId: string
+  ): Promise<WorkOrder[]> => {
+    return getWorkOrdersForEquipment(equipmentId);
+  });
+
+  // Complete work order (with auto maintenance log creation)
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_COMPLETE, async (
+    _event,
+    id: string,
+    actualHours: number,
+    notes?: string | null,
+    createLog?: boolean
+  ): Promise<{ workOrder: WorkOrder; maintenanceLog?: MaintenanceLog } | null> => {
+    console.log('[IPC] Completing work order:', id, 'with', actualHours, 'hours');
+    const result = completeWorkOrder(id, actualHours, notes, createLog !== false);
+    if (result) {
+      console.log('[IPC] Work order completed, maintenance log created:', result.maintenanceLog?.id);
+    }
+    return result;
+  });
+
+  // ==========================================
+  // Work Order Templates
+  // ==========================================
+
+  // Get all templates
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_GET_ALL, async (): Promise<WorkOrderTemplate[]> => {
+    return getAllWorkOrderTemplates();
+  });
+
+  // Get single template
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_GET, async (_event, id: string): Promise<WorkOrderTemplate | null> => {
+    return getWorkOrderTemplate(id);
+  });
+
+  // Add template
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_ADD, async (
+    _event, 
+    template: Omit<WorkOrderTemplate, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<WorkOrderTemplate> => {
+    console.log('[IPC] Creating work order template:', template.name);
+    return createWorkOrderTemplate(template);
+  });
+
+  // Update template
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_UPDATE, async (
+    _event, 
+    id: string, 
+    data: Partial<Omit<WorkOrderTemplate, 'id' | 'createdAt' | 'updatedAt'>>
+  ): Promise<WorkOrderTemplate | null> => {
+    console.log('[IPC] Updating work order template:', id);
+    return updateWorkOrderTemplate(id, data);
+  });
+
+  // Delete template
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_DELETE, async (_event, id: string): Promise<boolean> => {
+    console.log('[IPC] Deleting work order template:', id);
+    return deleteWorkOrderTemplate(id);
   });
 }
