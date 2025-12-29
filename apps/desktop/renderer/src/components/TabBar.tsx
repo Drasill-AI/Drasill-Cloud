@@ -19,7 +19,7 @@ export function TabBar() {
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`${styles.tab} ${activeTabId === tab.id ? styles.active : ''}`}
+            className={`${styles.tab} ${activeTabId === tab.id ? styles.active : ''} ${styles[getTabColorClass(tab.type, tab.path)]}`}
             onClick={() => setActiveTab(tab.id)}
             title={tab.path}
           >
@@ -39,12 +39,53 @@ export function TabBar() {
   );
 }
 
+function getTabColorClass(type: string, path: string): string {
+  // Work orders - green
+  if (type === 'workorder' || type === 'workorders-list') {
+    return 'tabWorkOrder';
+  }
+  
+  // Equipment - yellow
+  if (type === 'equipment') {
+    return 'tabEquipment';
+  }
+  
+  // Schematics and images - purple
+  if (type === 'schematic' || type === 'image') {
+    return 'tabSchematic';
+  }
+  
+  // Documents (PDF, markdown, text) - blue
+  if (type === 'pdf' || type === 'markdown' || type === 'text') {
+    return 'tabDocument';
+  }
+  
+  // Fallback based on file extension
+  const ext = path.toLowerCase().split('.').pop() || '';
+  if (['pdf', 'md', 'txt', 'doc', 'docx'].includes(ext)) {
+    return 'tabDocument';
+  }
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'].includes(ext)) {
+    return 'tabSchematic';
+  }
+  
+  return 'tabDocument'; // Default to blue
+}
+
 function getTabIcon(type: string): string {
   switch (type) {
     case 'markdown':
       return '📝';
     case 'pdf':
       return '📕';
+    case 'equipment':
+      return '⚙️';
+    case 'workorder':
+    case 'workorders-list':
+      return '🔧';
+    case 'schematic':
+    case 'image':
+      return '🖼️';
     default:
       return '📄';
   }

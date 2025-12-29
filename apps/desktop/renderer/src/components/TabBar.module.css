@@ -94,3 +94,77 @@
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }
+
+/* Tab color classes based on type */
+
+/* Documents (PDF, markdown, text) - Blue */
+.tabDocument {
+  border-left: 3px solid #4da6ff;
+}
+
+.tabDocument:hover {
+  background-color: rgba(77, 166, 255, 0.1);
+}
+
+.tabDocument.active {
+  background-color: rgba(77, 166, 255, 0.15);
+}
+
+.tabDocument.active::after {
+  background: #4da6ff;
+  box-shadow: 0 0 8px rgba(77, 166, 255, 0.6);
+}
+
+/* Equipment - Yellow/Gold */
+.tabEquipment {
+  border-left: 3px solid #f5a623;
+}
+
+.tabEquipment:hover {
+  background-color: rgba(245, 166, 35, 0.1);
+}
+
+.tabEquipment.active {
+  background-color: rgba(245, 166, 35, 0.15);
+}
+
+.tabEquipment.active::after {
+  background: #f5a623;
+  box-shadow: 0 0 8px rgba(245, 166, 35, 0.6);
+}
+
+/* Work Orders - Green */
+.tabWorkOrder {
+  border-left: 3px solid #28a745;
+}
+
+.tabWorkOrder:hover {
+  background-color: rgba(40, 167, 69, 0.1);
+}
+
+.tabWorkOrder.active {
+  background-color: rgba(40, 167, 69, 0.15);
+}
+
+.tabWorkOrder.active::after {
+  background: #28a745;
+  box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+}
+
+/* Schematics and Images - Purple */
+.tabSchematic {
+  border-left: 3px solid #a855f7;
+}
+
+.tabSchematic:hover {
+  background-color: rgba(168, 85, 247, 0.1);
+}
+
+.tabSchematic.active {
+  background-color: rgba(168, 85, 247, 0.15);
+}
+
+.tabSchematic.active::after {
+  background: #a855f7;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+}
