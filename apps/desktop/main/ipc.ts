@@ -22,7 +22,7 @@ import {
   CSVExportOptions,
 } from '@drasill/shared';
 import { sendChatMessage, setApiKey, getApiKey, hasApiKey, cancelStream } from './chat';
-import { indexWorkspace, searchRAG, getIndexingStatus, clearVectorStore, resetOpenAI } from './rag';
+import { indexWorkspace, searchRAG, getIndexingStatus, clearVectorStore, resetOpenAI, initRAG, setPdfExtractionReady } from './rag';
 import { processSchematicToolCall, getSchematicImage } from './schematic';
 import { labelDetectedRegions, generateExplodedView } from './vision';
 import { importEquipmentCSV, exportEquipmentCSV, exportLogsCSV, getEquipmentCSVTemplate } from './csv';
@@ -43,6 +43,7 @@ import {
   calculateEquipmentAnalytics,
   addFileAssociation,
   removeFileAssociation,
+  removeFileAssociationsByPath,
   getFileAssociationsForEquipment,
   getFileAssociationsForFile,
   generateSampleAnalyticsData,
@@ -137,6 +138,15 @@ const stateStore = new Store<{ appState: PersistedState }>({
 });
 
 export function setupIpcHandlers(): void {
+  // Initialize RAG system (PDF extraction IPC handlers)
+  initRAG();
+  
+  // Handle PDF extraction ready signal from renderer
+  ipcMain.on('pdf-extraction-ready', () => {
+    console.log('[IPC] Received pdf-extraction-ready signal from renderer');
+    setPdfExtractionReady(true);
+  });
+
   // Select workspace folder
   ipcMain.handle(IPC_CHANNELS.SELECT_WORKSPACE, async (): Promise<string | null> => {
     const result = await dialog.showOpenDialog({
@@ -760,6 +770,15 @@ export function setupIpcHandlers(): void {
   ): Promise<boolean> => {
     console.log('[IPC] Removing file association:', filePath, 'from equipment:', equipmentId);
     return removeFileAssociation(equipmentId, filePath);
+  });
+
+  // Remove all file associations for a file path (when file is deleted)
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_REMOVE_BY_PATH, async (
+    _event, 
+    filePath: string
+  ): Promise<number> => {
+    console.log('[IPC] Removing all file associations for:', filePath);
+    return removeFileAssociationsByPath(filePath);
   });
 
   // Get file associations for equipment

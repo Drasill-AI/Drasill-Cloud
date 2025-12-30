@@ -526,6 +526,12 @@ export function removeFileAssociation(equipmentId: string, filePath: string): bo
   return result.changes > 0;
 }
 
+export function removeFileAssociationsByPath(filePath: string): number {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM file_equipment_associations WHERE file_path = ?').run(filePath);
+  return result.changes;
+}
+
 export function getFileAssociationsForEquipment(equipmentId: string): FileEquipmentAssociation[] {
   const db = getDatabase();
   const rows = db.prepare('SELECT * FROM file_equipment_associations WHERE equipment_id = ? ORDER BY created_at DESC').all(equipmentId) as Record<string, unknown>[];

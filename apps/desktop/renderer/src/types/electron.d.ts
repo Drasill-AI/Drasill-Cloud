@@ -38,7 +38,7 @@ interface ElectronAPI {
   onMenuCommandPalette: (callback: () => void) => () => void;
   // Chat API
   sendChatMessage: (request: ChatRequest) => Promise<void>;
-  onChatStreamStart: (callback: (data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string }> }) => void) => () => void;
+  onChatStreamStart: (callback: (data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string; pageNumber?: number }> }) => void) => () => void;
   onChatStreamChunk: (callback: (chunk: ChatStreamChunk) => void) => () => void;
   onChatStreamEnd: (callback: (data: { id: string; cancelled?: boolean }) => void) => () => void;
   onChatStreamError: (callback: (data: { id?: string; error: string }) => void) => () => void;
@@ -89,6 +89,7 @@ interface ElectronAPI {
   // File-Equipment Associations API
   addFileAssociation: (data: Omit<FileEquipmentAssociation, 'id' | 'createdAt'>) => Promise<FileEquipmentAssociation>;
   removeFileAssociation: (equipmentId: string, filePath: string) => Promise<boolean>;
+  removeFileAssociationsByPath: (filePath: string) => Promise<number>;
   getFileAssociationsForEquipment: (equipmentId: string) => Promise<FileEquipmentAssociation[]>;
   getFileAssociationsForFile: (filePath: string) => Promise<FileEquipmentAssociation[]>;
   // Sample Data Generation API
@@ -108,6 +109,10 @@ interface ElectronAPI {
   updateWorkOrderTemplate: (id: string, data: Partial<Omit<WorkOrderTemplate, 'id' | 'created_at' | 'updated_at'>>) => Promise<WorkOrderTemplate | null>;
   deleteWorkOrderTemplate: (id: string) => Promise<boolean>;
   createWorkOrderFromTemplate: (templateId: string, equipmentId: string) => Promise<WorkOrder>;
+  // PDF Text Extraction API (for RAG)
+  onPdfExtractRequest: (callback: (data: { requestId: string; filePath: string }) => void) => () => void;
+  sendPdfExtractResult: (data: { requestId: string; text: string; error?: string }) => void;
+  signalPdfExtractionReady: () => void;
 }
 
 declare global {

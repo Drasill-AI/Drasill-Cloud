@@ -45,6 +45,8 @@ export interface Tab {
   equipmentId?: string;
   /** Work order ID (only for work order tabs) */
   workOrderId?: string;
+  /** Initial page number for PDF tabs */
+  initialPage?: number;
 }
 
 /**
@@ -162,6 +164,7 @@ export const IPC_CHANNELS = {
   // File-Equipment Associations
   FILE_ASSOC_ADD: 'file-assoc-add',
   FILE_ASSOC_REMOVE: 'file-assoc-remove',
+  FILE_ASSOC_REMOVE_BY_PATH: 'file-assoc-remove-by-path',
   FILE_ASSOC_GET_FOR_EQUIPMENT: 'file-assoc-get-for-equipment',
   FILE_ASSOC_GET_FOR_FILE: 'file-assoc-get-for-file',
   // Sample Data Generation
@@ -180,6 +183,9 @@ export const IPC_CHANNELS = {
   WORK_ORDER_TEMPLATE_ADD: 'work-order-template-add',
   WORK_ORDER_TEMPLATE_UPDATE: 'work-order-template-update',
   WORK_ORDER_TEMPLATE_DELETE: 'work-order-template-delete',
+  // PDF Text Extraction (via renderer for DOM support)
+  PDF_EXTRACT_TEXT_REQUEST: 'pdf-extract-text-request',
+  PDF_EXTRACT_TEXT_RESPONSE: 'pdf-extract-text-response',
 } as const;
 
 /**
@@ -189,6 +195,7 @@ export interface RAGSource {
   fileName: string;
   filePath: string;
   section: string;
+  pageNumber?: number; // For PDFs, the page where content was found
 }
 
 /**

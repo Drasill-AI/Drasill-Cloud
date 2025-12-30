@@ -435,25 +435,49 @@
 
 .tableHeader {
   display: grid;
-  grid-template-columns: 150px 100px 120px 80px 1fr;
+  grid-template-columns: 120px 80px 100px 80px 1fr;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 10px 12px;
   background: var(--bg-secondary, #1e1e1e);
-  font-size: 0.8rem;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary, #999999);
   text-transform: uppercase;
 }
 
+.tableHeader > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Duration column header - right align */
+.tableHeader > span:nth-child(4) {
+  text-align: right;
+}
+
 .tableRow {
   display: grid;
-  grid-template-columns: 150px 100px 120px 80px 1fr;
+  grid-template-columns: 120px 80px 100px 80px 1fr;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 10px 12px;
   border-top: 1px solid var(--border-color, #3c3c3c);
-  font-size: 0.9rem;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.2s;
+  align-items: center;
+}
+
+.tableRow > span,
+.tableRow > div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Duration column data - right align */
+.tableRow > span:nth-child(4) {
+  text-align: right;
 }
 
 .tableRow:hover {
@@ -469,13 +493,14 @@
 }
 
 .logType {
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
   text-align: center;
   width: fit-content;
+  white-space: nowrap;
 }
 
 .logType.preventive {

@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ConfirmProvider } from './components/ConfirmDialog';
 import { FirstRunWizard } from './components/FirstRunWizard';
 import { useAppStore } from './store';
+import { initPdfExtractor } from './services/pdfExtractor';
 
 function App() {
   const [showWizard, setShowWizard] = useState(false);
@@ -16,6 +17,11 @@ function App() {
     toggleCommandPalette,
     isCommandPaletteOpen 
   } = useAppStore();
+
+  useEffect(() => {
+    // Initialize PDF extractor for RAG indexing
+    initPdfExtractor();
+  }, []);
 
   useEffect(() => {
     // Check if first run

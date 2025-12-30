@@ -116,8 +116,8 @@ const api = {
   /**
    * Subscribe to chat stream start (includes RAG sources)
    */
-  onChatStreamStart: (callback: (data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string }> }) => void): (() => void) => {
-    const handler = (_event: IpcRendererEvent, data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string }> }) => callback(data);
+  onChatStreamStart: (callback: (data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string; pageNumber?: number }> }) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, data: { messageId: string; ragSources: Array<{ fileName: string; filePath: string; section: string; pageNumber?: number }> }) => callback(data);
     ipcRenderer.on(IPC_CHANNELS.CHAT_STREAM_START, handler);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.CHAT_STREAM_START, handler);
   },
@@ -446,6 +446,13 @@ const api = {
   },
 
   /**
+   * Remove all file associations for a file path (when file is deleted)
+   */
+  removeFileAssociationsByPath: (filePath: string): Promise<number> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FILE_ASSOC_REMOVE_BY_PATH, filePath);
+  },
+
+  /**
    * Get all file associations for an equipment
    */
   getFileAssociationsForEquipment: (equipmentId: string): Promise<FileEquipmentAssociation[]> => {
@@ -565,6 +572,30 @@ const api = {
    */
   deleteWorkOrderTemplate: (id: string): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.WORK_ORDER_TEMPLATE_DELETE, id);
+  },
+
+  // PDF Text Extraction (for RAG indexing)
+  /**
+   * Listen for PDF extraction requests from main process
+   */
+  onPdfExtractRequest: (callback: (data: { requestId: string; filePath: string }) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, data: { requestId: string; filePath: string }) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.PDF_EXTRACT_TEXT_REQUEST, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.PDF_EXTRACT_TEXT_REQUEST, handler);
+  },
+
+  /**
+   * Send PDF extraction result back to main process
+   */
+  sendPdfExtractResult: (data: { requestId: string; text: string; error?: string }): void => {
+    ipcRenderer.send(IPC_CHANNELS.PDF_EXTRACT_TEXT_RESPONSE, data);
+  },
+
+  /**
+   * Signal to main process that PDF extraction is ready
+   */
+  signalPdfExtractionReady: (): void => {
+    ipcRenderer.send('pdf-extraction-ready');
   },
 };
 

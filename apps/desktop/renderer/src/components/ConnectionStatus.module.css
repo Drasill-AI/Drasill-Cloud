@@ -5,6 +5,13 @@
   z-index: 1000;
 }
 
+.container.inline {
+  position: relative;
+  top: auto;
+  right: auto;
+  z-index: auto;
+}
+
 .statusButton {
   display: flex;
   align-items: center;
@@ -18,6 +25,18 @@
   transition: all 0.2s ease;
   font-size: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.statusButton.inlineButton {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  box-shadow: none;
+}
+
+.statusButton.inlineButton:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .statusButton:hover {

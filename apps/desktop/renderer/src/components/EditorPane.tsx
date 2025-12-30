@@ -92,7 +92,7 @@ export function EditorPane() {
 
   // PDF viewer
   if (activeTab.type === 'pdf') {
-    return <PdfViewer fileName={activeTab.name} path={activeTab.path} />;
+    return <PdfViewer fileName={activeTab.name} path={activeTab.path} initialPage={activeTab.initialPage} />;
   }
 
   // Word viewer

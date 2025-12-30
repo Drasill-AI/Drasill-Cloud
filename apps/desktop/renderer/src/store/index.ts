@@ -70,12 +70,13 @@ interface AppState {
   toggleDirectory: (node: TreeNode) => Promise<void>;
   refreshTree: () => Promise<void>;
   
-  openFile: (path: string, name: string) => Promise<void>;
+  openFile: (path: string, name: string, options?: { initialPage?: number }) => Promise<void>;
   closeTab: (tabId: string) => void;
   closeActiveTab: () => void;
   setActiveTab: (tabId: string) => void;
   saveTabViewState: (tabId: string, viewState: unknown) => void;
   getTabViewState: (tabId: string) => unknown | undefined;
+  updateTabInitialPage: (tabId: string, page: number) => void;
 
   toggleCommandPalette: () => void;
   
@@ -98,6 +99,9 @@ interface AppState {
   savePersistedState: () => Promise<void>;
   loadPersistedState: () => Promise<void>;
   restoreWorkspace: (path: string) => Promise<void>;
+
+  // File cleanup (when file is deleted from workspace)
+  removeFileFromAllContexts: (filePath: string) => Promise<void>;
 
   // Equipment actions
   loadEquipment: () => Promise<void>;
@@ -295,13 +299,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  openFile: async (path: string, name: string) => {
+  openFile: async (path: string, name: string, options?: { initialPage?: number }) => {
     const { tabs, loadingFiles } = get();
 
     // Check if already open
     const existingTab = tabs.find((t) => t.path === path);
     if (existingTab) {
-      set({ activeTabId: existingTab.id });
+      // If opening with a specific page and it's a PDF, update the initial page
+      if (options?.initialPage && existingTab.type === 'pdf') {
+        set((state) => ({
+          tabs: state.tabs.map(t => 
+            t.id === existingTab.id 
+              ? { ...t, initialPage: options.initialPage }
+              : t
+          ),
+          activeTabId: existingTab.id,
+        }));
+      } else {
+        set({ activeTabId: existingTab.id });
+      }
       return;
     }
 
@@ -314,6 +330,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         name,
         path,
         type: 'pdf',
+        initialPage: options?.initialPage,
       };
       set((state) => ({
         tabs: [...state.tabs, newTab],
@@ -440,6 +457,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getTabViewState: (tabId: string) => {
     return get().tabViewStates.get(tabId);
+  },
+
+  updateTabInitialPage: (tabId: string, page: number) => {
+    set((state) => ({
+      tabs: state.tabs.map(t => 
+        t.id === tabId ? { ...t, initialPage: page } : t
+      ),
+    }));
   },
 
   toggleCommandPalette: () => {
@@ -727,6 +752,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     } catch (error) {
       get().showToast('error', `Failed to restore workspace: ${error}`);
+    }
+  },
+
+  // Remove file from all contexts when deleted from workspace
+  removeFileFromAllContexts: async (filePath: string) => {
+    try {
+      // Close the tab if open
+      get().closeTab(filePath);
+      
+      // Remove from equipment file associations in database
+      await window.electronAPI.removeFileAssociationsByPath(filePath);
+      
+      console.log('[Store] Removed file from all contexts:', filePath);
+    } catch (error) {
+      console.error('[Store] Failed to remove file from contexts:', error);
     }
   },
 

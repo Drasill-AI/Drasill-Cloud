@@ -9,7 +9,7 @@ interface TreeItemProps {
 }
 
 export function TreeItem({ node, depth }: TreeItemProps) {
-  const { toggleDirectory, openFile, activeTabId, closeTab, refreshWorkspace, showToast } = useAppStore();
+  const { toggleDirectory, openFile, activeTabId, removeFileFromAllContexts, refreshTree, showToast } = useAppStore();
   const confirm = useConfirm();
 
   const handleClick = () => {
@@ -39,10 +39,10 @@ export function TreeItem({ node, depth }: TreeItemProps) {
     try {
       const result = await window.electronAPI.deleteFile(node.path);
       if (result.success) {
-        // Close the tab if it's open
-        closeTab(node.path);
+        // Remove file from all contexts (tabs, equipment associations, etc.)
+        await removeFileFromAllContexts(node.path);
         // Refresh the file tree
-        refreshWorkspace();
+        refreshTree();
         showToast('success', `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted`);
       } else {
         showToast('error', result.error || `Failed to delete ${itemType}`);

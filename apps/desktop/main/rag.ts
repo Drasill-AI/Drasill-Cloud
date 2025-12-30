@@ -1,12 +1,21 @@
 import OpenAI from 'openai';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, ipcMain } from 'electron';
 import { IPC_CHANNELS, TEXT_EXTENSIONS, DOCUMENT_EXTENSIONS, IGNORED_PATTERNS } from '@drasill/shared';
 import * as keychain from './keychain';
 
 // For Word doc parsing
 import mammoth from 'mammoth';
+
+// PDF extraction request tracking
+interface PdfExtractionRequest {
+  resolve: (text: string) => void;
+  reject: (error: Error) => void;
+  timeout: NodeJS.Timeout;
+}
+const pendingPdfExtractions = new Map<string, PdfExtractionRequest>();
+let pdfExtractionReady = false;
 
 interface DocumentChunk {
   id: string;
@@ -16,6 +25,7 @@ interface DocumentChunk {
   embedding: number[];
   chunkIndex: number;
   totalChunks: number;
+  pageNumber?: number; // For PDFs, the page where this chunk came from
 }
 
 interface VectorStore {
@@ -30,7 +40,7 @@ let openai: OpenAI | null = null;
 
 const CHUNK_SIZE = 1000; // Characters per chunk
 const CHUNK_OVERLAP = 200; // Overlap between chunks
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB max per file
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB max per file (PDFs can be large)
 
 /**
  * Initialize OpenAI client (async for keychain access)
@@ -64,19 +74,123 @@ function chunkText(text: string, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP
 }
 
 /**
- * Extract text from PDF file
- * Note: PDF parsing in Electron main process can be tricky
- * For now, we'll return a placeholder and the file path
+ * Split PDF text into chunks while tracking page numbers
+ * PDF text from extractor contains "--- Page X ---" markers
  */
-async function extractPdfText(filePath: string): Promise<string> {
-  try {
-    // Since pdf-parse has issues in Electron main process,
-    // we'll just note it's a PDF and encourage opening it
-    return `[PDF Document: ${path.basename(filePath)}]\nThis is a PDF file. Content indexing for PDFs is currently being improved.`;
-  } catch (error) {
-    console.error(`Failed to extract PDF text from ${filePath}:`, error);
-    return '';
+function chunkPdfText(text: string, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP): Array<{ text: string; pageNumber: number }> {
+  const chunks: Array<{ text: string; pageNumber: number }> = [];
+  
+  // Split by page markers
+  const pageRegex = /--- Page (\d+) ---/g;
+  const pages: Array<{ pageNumber: number; text: string; startIndex: number }> = [];
+  
+  let lastIndex = 0;
+  let match;
+  let lastPageNumber = 1;
+  
+  while ((match = pageRegex.exec(text)) !== null) {
+    if (match.index > lastIndex && pages.length > 0) {
+      // Add text before this marker to previous page
+      pages[pages.length - 1].text += text.slice(lastIndex, match.index);
+    }
+    lastPageNumber = parseInt(match[1], 10);
+    pages.push({
+      pageNumber: lastPageNumber,
+      text: '',
+      startIndex: match.index + match[0].length,
+    });
+    lastIndex = match.index + match[0].length;
   }
+  
+  // Add remaining text
+  if (pages.length > 0) {
+    pages[pages.length - 1].text = text.slice(lastIndex);
+  } else {
+    // No page markers found, treat as single page
+    pages.push({ pageNumber: 1, text, startIndex: 0 });
+  }
+  
+  // Now chunk each page's text while preserving page numbers
+  for (const page of pages) {
+    const pageText = page.text.trim();
+    if (!pageText) continue;
+    
+    let start = 0;
+    while (start < pageText.length) {
+      const end = Math.min(start + chunkSize, pageText.length);
+      chunks.push({
+        text: pageText.slice(start, end),
+        pageNumber: page.pageNumber,
+      });
+      start += chunkSize - overlap;
+      if (start >= pageText.length) break;
+    }
+  }
+  
+  return chunks;
+}
+
+/**
+ * Extract text from PDF file via IPC to renderer process
+ * (pdfjs-dist requires DOM APIs only available in renderer)
+ */
+async function extractPdfText(filePath: string, window: BrowserWindow | null): Promise<string> {
+  console.log(`[RAG] extractPdfText called. Ready: ${pdfExtractionReady}, Window: ${!!window}`);
+  
+  // If renderer isn't ready or no window, return placeholder
+  if (!window || !pdfExtractionReady) {
+    console.log(`[RAG] PDF extraction not ready (ready=${pdfExtractionReady}, window=${!!window}), skipping: ${path.basename(filePath)}`);
+    return `[PDF Document: ${path.basename(filePath)}]\nPDF will be indexed when the app is fully loaded.`;
+  }
+
+  return new Promise((resolve, reject) => {
+    const requestId = `${filePath}-${Date.now()}`;
+    
+    // Set timeout for extraction (30 seconds for large PDFs)
+    const timeout = setTimeout(() => {
+      pendingPdfExtractions.delete(requestId);
+      console.warn(`[RAG] PDF extraction timed out: ${path.basename(filePath)}`);
+      resolve(`[PDF Document: ${path.basename(filePath)}]\nPDF extraction timed out.`);
+    }, 30000);
+    
+    pendingPdfExtractions.set(requestId, { resolve, reject, timeout });
+    
+    // Request extraction from renderer
+    console.log(`[RAG] Requesting PDF extraction: ${path.basename(filePath)}`);
+    window.webContents.send(IPC_CHANNELS.PDF_EXTRACT_TEXT_REQUEST, {
+      requestId,
+      filePath,
+    });
+  });
+}
+
+/**
+ * Handle PDF extraction response from renderer
+ */
+function setupPdfExtractionHandler(): void {
+  ipcMain.on(IPC_CHANNELS.PDF_EXTRACT_TEXT_RESPONSE, (_event, data: { requestId: string; text: string; error?: string }) => {
+    const pending = pendingPdfExtractions.get(data.requestId);
+    if (pending) {
+      clearTimeout(pending.timeout);
+      pendingPdfExtractions.delete(data.requestId);
+      
+      if (data.error) {
+        console.error(`[RAG] PDF extraction error: ${data.error}`);
+        pending.resolve(`[PDF Document]\nFailed to extract text: ${data.error}`);
+      } else {
+        console.log(`[RAG] PDF extracted successfully: ${data.text.length} chars`);
+        pending.resolve(data.text);
+      }
+    }
+  });
+}
+
+/**
+ * Mark PDF extraction as ready (called when renderer signals it's ready)
+ */
+export function setPdfExtractionReady(ready: boolean): void {
+  pdfExtractionReady = ready;
+  console.log(`[RAG] PDF extraction ready: ${ready}`);
 }
 
 /**
@@ -95,7 +209,7 @@ async function extractWordText(filePath: string): Promise<string> {
 /**
  * Extract text from a file based on its type
  */
-async function extractFileText(filePath: string): Promise<string> {
+async function extractFileText(filePath: string, window: BrowserWindow | null): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
   
   try {
@@ -106,7 +220,7 @@ async function extractFileText(filePath: string): Promise<string> {
     }
     
     if (ext === '.pdf') {
-      return await extractPdfText(filePath);
+      return await extractPdfText(filePath, window);
     }
     
     if (ext === '.doc' || ext === '.docx') {
@@ -207,6 +321,8 @@ function sendProgress(window: BrowserWindow, current: number, total: number, fil
  * Index a workspace for RAG
  */
 export async function indexWorkspace(workspacePath: string, window: BrowserWindow): Promise<{ success: boolean; chunksIndexed: number; error?: string }> {
+  console.log(`[RAG] indexWorkspace called. PDF extraction ready: ${pdfExtractionReady}`);
+  
   if (isIndexing) {
     return { success: false, chunksIndexed: 0, error: 'Indexing already in progress' };
   }
@@ -232,35 +348,71 @@ export async function indexWorkspace(workspacePath: string, window: BrowserWindo
     for (let i = 0; i < files.length; i++) {
       const filePath = files[i];
       const fileName = path.basename(filePath);
+      const ext = path.extname(filePath).toLowerCase();
       
       sendProgress(window, i + 1, files.length, fileName);
       
       // Extract text
-      const text = await extractFileText(filePath);
+      const text = await extractFileText(filePath, window);
       if (!text || text.trim().length < 50) continue;
       
-      // Chunk the text
-      const textChunks = chunkText(text);
+      // Skip PDFs with placeholder content (extraction wasn't ready)
+      if (ext === '.pdf' && (text.includes('PDF will be indexed when the app is fully loaded') || 
+                             text.includes('PDF extraction timed out') ||
+                             text.includes('Failed to extract text'))) {
+        console.log(`[RAG] Skipping PDF with placeholder content: ${fileName}`);
+        continue;
+      }
       
-      // Get embeddings for each chunk
-      for (let j = 0; j < textChunks.length; j++) {
-        try {
-          const embedding = await getEmbedding(textChunks[j]);
-          
-          chunks.push({
-            id: `${filePath}-${j}`,
-            filePath,
-            fileName,
-            content: textChunks[j],
-            embedding,
-            chunkIndex: j,
-            totalChunks: textChunks.length,
-          });
-          
-          // Rate limiting - small delay between embeddings
-          await new Promise(resolve => setTimeout(resolve, 50));
-        } catch (error) {
-          console.error(`Failed to get embedding for chunk ${j} of ${fileName}:`, error);
+      // For PDFs, use page-aware chunking
+      if (ext === '.pdf') {
+        const pdfChunks = chunkPdfText(text);
+        
+        for (let j = 0; j < pdfChunks.length; j++) {
+          try {
+            const embedding = await getEmbedding(pdfChunks[j].text);
+            
+            chunks.push({
+              id: `${filePath}-${j}`,
+              filePath,
+              fileName,
+              content: pdfChunks[j].text,
+              embedding,
+              chunkIndex: j,
+              totalChunks: pdfChunks.length,
+              pageNumber: pdfChunks[j].pageNumber,
+            });
+            
+            // Rate limiting - small delay between embeddings
+            await new Promise(resolve => setTimeout(resolve, 50));
+          } catch (error) {
+            console.error(`Failed to get embedding for chunk ${j} of ${fileName}:`, error);
+          }
+        }
+      } else {
+        // Regular chunking for non-PDF files
+        const textChunks = chunkText(text);
+        
+        // Get embeddings for each chunk
+        for (let j = 0; j < textChunks.length; j++) {
+          try {
+            const embedding = await getEmbedding(textChunks[j]);
+            
+            chunks.push({
+              id: `${filePath}-${j}`,
+              filePath,
+              fileName,
+              content: textChunks[j],
+              embedding,
+              chunkIndex: j,
+              totalChunks: textChunks.length,
+            });
+            
+            // Rate limiting - small delay between embeddings
+            await new Promise(resolve => setTimeout(resolve, 50));
+          } catch (error) {
+            console.error(`Failed to get embedding for chunk ${j} of ${fileName}:`, error);
+          }
         }
       }
     }
@@ -291,7 +443,7 @@ export async function indexWorkspace(workspacePath: string, window: BrowserWindo
 /**
  * Search the vector store for relevant chunks
  */
-export async function searchRAG(query: string, topK = 5): Promise<{ chunks: Array<{ content: string; fileName: string; filePath: string; score: number; chunkIndex: number; totalChunks: number }> }> {
+export async function searchRAG(query: string, topK = 5): Promise<{ chunks: Array<{ content: string; fileName: string; filePath: string; score: number; chunkIndex: number; totalChunks: number; pageNumber?: number }> }> {
   if (!vectorStore || vectorStore.chunks.length === 0) {
     return { chunks: [] };
   }
@@ -317,6 +469,7 @@ export async function searchRAG(query: string, topK = 5): Promise<{ chunks: Arra
         score: c.score,
         chunkIndex: c.chunkIndex,
         totalChunks: c.totalChunks,
+        pageNumber: c.pageNumber,
       })),
     };
   } catch (error) {
@@ -329,7 +482,7 @@ export async function searchRAG(query: string, topK = 5): Promise<{ chunks: Arra
  * Get RAG context for a chat query
  * Returns context with structured source citations
  */
-export async function getRAGContext(query: string): Promise<{ context: string; sources: Array<{ fileName: string; filePath: string; section: string }> }> {
+export async function getRAGContext(query: string): Promise<{ context: string; sources: Array<{ fileName: string; filePath: string; section: string; pageNumber?: number }> }> {
   const results = await searchRAG(query, 5);
   
   if (results.chunks.length === 0) {
@@ -338,16 +491,20 @@ export async function getRAGContext(query: string): Promise<{ context: string; s
   
   // Build context string with source attribution
   // Use a numbered reference format that the AI can cite
-  const sources: Array<{ fileName: string; filePath: string; section: string }> = [];
+  const sources: Array<{ fileName: string; filePath: string; section: string; pageNumber?: number }> = [];
   const contextParts = results.chunks.map((chunk, index) => {
-    const sectionLabel = chunk.totalChunks > 1 
-      ? `Section ${chunk.chunkIndex + 1}/${chunk.totalChunks}`
-      : 'Full Document';
+    // For PDFs with page numbers, include the page
+    const sectionLabel = chunk.pageNumber 
+      ? `Page ${chunk.pageNumber}`
+      : chunk.totalChunks > 1 
+        ? `Section ${chunk.chunkIndex + 1}/${chunk.totalChunks}`
+        : 'Full Document';
     
     sources.push({
       fileName: chunk.fileName,
       filePath: chunk.filePath,
       section: sectionLabel,
+      pageNumber: chunk.pageNumber,
     });
     
     return `[${index + 1}] ${chunk.fileName} (${sectionLabel})\n${chunk.content}`;
@@ -388,4 +545,12 @@ export function clearVectorStore(): void {
  */
 export function resetOpenAI(): void {
   openai = null;
+}
+
+/**
+ * Initialize RAG system (setup IPC handlers)
+ */
+export function initRAG(): void {
+  setupPdfExtractionHandler();
+  console.log('[RAG] Initialized PDF extraction IPC handler');
 }

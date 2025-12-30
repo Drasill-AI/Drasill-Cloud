@@ -1,8 +1,40 @@
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store';
 import styles from './TabBar.module.css';
 
 export function TabBar() {
   const { tabs, activeTabId, setActiveTab, closeTab } = useAppStore();
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      setCanScrollLeft(container.scrollLeft > 0);
+      setCanScrollRight(
+        container.scrollLeft < container.scrollWidth - container.clientWidth - 1
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [checkScroll, tabs.length]);
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    const container = tabsContainerRef.current;
+    if (container) {
+      const scrollAmount = 200;
+      container.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+      setTimeout(checkScroll, 300);
+    }
+  };
 
   if (tabs.length === 0) {
     return null;
@@ -15,7 +47,20 @@ export function TabBar() {
 
   return (
     <div className={styles.tabBar}>
-      <div className={styles.tabs}>
+      {canScrollLeft && (
+        <button 
+          className={styles.scrollButton} 
+          onClick={() => scrollTabs('left')}
+          aria-label="Scroll tabs left"
+        >
+          ‹
+        </button>
+      )}
+      <div 
+        className={styles.tabs} 
+        ref={tabsContainerRef}
+        onScroll={checkScroll}
+      >
         {tabs.map((tab) => (
           <div
             key={tab.id}
@@ -35,6 +80,15 @@ export function TabBar() {
           </div>
         ))}
       </div>
+      {canScrollRight && (
+        <button 
+          className={styles.scrollButton} 
+          onClick={() => scrollTabs('right')}
+          aria-label="Scroll tabs right"
+        >
+          ›
+        </button>
+      )}
     </div>
   );
 }

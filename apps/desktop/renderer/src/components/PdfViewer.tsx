@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -11,15 +11,25 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 interface PdfViewerProps {
   fileName: string;
   path: string;
+  initialPage?: number;
 }
 
-export function PdfViewer({ fileName, path }: PdfViewerProps) {
+export function PdfViewer({ fileName, path, initialPage }: PdfViewerProps) {
   const [pdfData, setPdfData] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState<number>(initialPage || 1);
   const [scale, setScale] = useState<number>(1.0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const initialPageApplied = useRef(false);
+
+  // Track initialPage changes from citations
+  useEffect(() => {
+    if (initialPage && initialPage !== currentPage && numPages > 0) {
+      const targetPage = Math.min(Math.max(1, initialPage), numPages);
+      setCurrentPage(targetPage);
+    }
+  }, [initialPage, numPages]);
 
   // Load PDF data
   useEffect(() => {
@@ -54,8 +64,14 @@ export function PdfViewer({ fileName, path }: PdfViewerProps) {
 
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-    setCurrentPage(1);
-  }, []);
+    // If we have an initial page and haven't applied it yet, go there
+    if (initialPage && !initialPageApplied.current) {
+      setCurrentPage(Math.min(Math.max(1, initialPage), numPages));
+      initialPageApplied.current = true;
+    } else if (!initialPage) {
+      setCurrentPage(1);
+    }
+  }, [initialPage]);
 
   const onDocumentLoadError = useCallback((error: Error) => {
     setError(`Failed to load PDF: ${error.message}`);

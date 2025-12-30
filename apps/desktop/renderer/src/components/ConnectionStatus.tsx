@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store';
 import styles from './ConnectionStatus.module.css';
 
-export function ConnectionStatus() {
+interface ConnectionStatusProps {
+  inline?: boolean;
+}
+
+export function ConnectionStatus({ inline = false }: ConnectionStatusProps) {
   const { setOnlineStatus } = useAppStore();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isManualOffline, setIsManualOffline] = useState(false);
@@ -86,12 +90,12 @@ export function ConnectionStatus() {
 
   return (
     <div 
-      className={styles.container}
+      className={`${styles.container} ${inline ? styles.inline : ''}`}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
       <button 
-        className={`${styles.statusButton} ${effectiveOnline ? styles.online : styles.offline}`}
+        className={`${styles.statusButton} ${effectiveOnline ? styles.online : styles.offline} ${inline ? styles.inlineButton : ''}`}
         onClick={toggleManualOffline}
         title={getStatusText()}
       >

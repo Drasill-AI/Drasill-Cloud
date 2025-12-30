@@ -111,6 +111,13 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
         return;
       }
 
+      // Check for duplicate - prevent same file being added twice to this equipment
+      if (associatedFiles.some(f => f.filePath === filePath)) {
+        showToast('error', 'This file is already associated with this equipment');
+        setIsTaggingFile(false);
+        return;
+      }
+
       const fileName = filePath.split(/[\\/]/).pop() || filePath;
       const ext = fileName.split('.').pop()?.toLowerCase() || '';
       
