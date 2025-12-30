@@ -66,20 +66,40 @@ let db: Database.Database | null = null;
 export function getDatabase(): Database.Database {
   if (db) return db;
 
-  const userDataPath = app.getPath('userData');
-  const dbPath = path.join(userDataPath, 'drasill-cloud.db');
+  try {
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'drasill-cloud.db');
 
-  // Ensure directory exists
-  if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true });
+    // Ensure directory exists
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
+    }
+
+    db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    
+    initializeSchema();
+    
+    return db;
+  } catch (error) {
+    console.error('[Database] Failed to initialize database:', error);
+    throw new Error(`Database initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
 
-  db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  
-  initializeSchema();
-  
-  return db;
+/**
+ * Close the database connection safely
+ */
+export function closeDatabase(): void {
+  if (db) {
+    try {
+      db.close();
+      db = null;
+      console.log('[Database] Connection closed');
+    } catch (error) {
+      console.error('[Database] Error closing connection:', error);
+    }
+  }
 }
 
 /**
@@ -88,7 +108,8 @@ export function getDatabase(): Database.Database {
 function initializeSchema(): void {
   if (!db) return;
 
-  db.exec(`
+  try {
+    db.exec(`
     -- Equipment/Assets table
     CREATE TABLE IF NOT EXISTS equipment (
       id TEXT PRIMARY KEY,
@@ -198,6 +219,11 @@ function initializeSchema(): void {
 
     CREATE INDEX IF NOT EXISTS idx_templates_type ON work_order_templates(type);
   `);
+    console.log('[Database] Schema initialized successfully');
+  } catch (error) {
+    console.error('[Database] Failed to initialize schema:', error);
+    throw new Error(`Database schema initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**
@@ -673,16 +699,6 @@ export function generateSampleAnalyticsData(equipmentId: string): {
     failuresCreated: failureData.length,
     logsCreated: logData.length,
   };
-}
-
-/**
- * Close the database connection
- */
-export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
-  }
 }
 
 // ============ Work Order Types ============

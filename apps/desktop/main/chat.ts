@@ -136,6 +136,12 @@ export async function sendChatMessage(
   window: BrowserWindow,
   request: ChatRequest
 ): Promise<void> {
+  // Validate window is available
+  if (!window || window.isDestroyed()) {
+    console.error('[Chat] Cannot send message: window is null or destroyed');
+    return;
+  }
+
   // Initialize if needed (now async for keychain access)
   if (!openai && !(await initializeOpenAI())) {
     window.webContents.send(IPC_CHANNELS.CHAT_STREAM_ERROR, {

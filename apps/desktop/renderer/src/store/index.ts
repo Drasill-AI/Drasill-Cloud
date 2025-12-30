@@ -134,6 +134,9 @@ interface AppState {
   setOnlineStatus: (isOnline: boolean) => void;
 }
 
+// Maximum number of chat messages to keep in history (to prevent memory growth)
+const MAX_CHAT_HISTORY = 100;
+
 export const useAppStore = create<AppState>((set, get) => ({
   // Initial state
   workspacePath: null,
@@ -488,11 +491,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       timestamp: Date.now(),
     };
 
-    set((state) => ({
-      chatMessages: [...state.chatMessages, userMessage],
-      isChatLoading: true,
-      chatError: null,
-    }));
+    set((state) => {
+      // Trim history if it exceeds max (keep recent messages)
+      let messages = [...state.chatMessages, userMessage];
+      if (messages.length > MAX_CHAT_HISTORY) {
+        messages = messages.slice(-MAX_CHAT_HISTORY);
+      }
+      return {
+        chatMessages: messages,
+        isChatLoading: true,
+        chatError: null,
+      };
+    });
 
     const assistantMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -654,6 +664,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   // State persistence
   savePersistedState: async () => {
     const { workspacePath, tabs, activeTabId } = get();
+    // Load existing state to preserve firstRunComplete flag
+    let existingState: PersistedState | null = null;
+    try {
+      existingState = await window.electronAPI.loadState();
+    } catch {
+      // Ignore errors loading existing state
+    }
     const state: PersistedState = {
       workspacePath,
       openTabs: tabs.map(t => ({
@@ -663,6 +680,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         type: t.type,
       })),
       activeTabId,
+      firstRunComplete: existingState?.firstRunComplete ?? false,
     };
     try {
       await window.electronAPI.saveState(state);

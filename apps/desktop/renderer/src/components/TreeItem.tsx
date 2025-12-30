@@ -1,5 +1,6 @@
 import { TreeNode } from '@drasill/shared';
 import { useAppStore } from '../store';
+import { useConfirm } from './ConfirmDialog';
 import styles from './TreeItem.module.css';
 
 interface TreeItemProps {
@@ -9,6 +10,7 @@ interface TreeItemProps {
 
 export function TreeItem({ node, depth }: TreeItemProps) {
   const { toggleDirectory, openFile, activeTabId, closeTab, refreshWorkspace, showToast } = useAppStore();
+  const confirm = useConfirm();
 
   const handleClick = () => {
     if (node.isDirectory) {
@@ -22,7 +24,15 @@ export function TreeItem({ node, depth }: TreeItemProps) {
     e.stopPropagation();
     
     const itemType = node.isDirectory ? 'folder' : 'file';
-    if (!confirm(`Delete this ${itemType}? This cannot be undone.\n\n${node.name}`)) {
+    const confirmed = await confirm({
+      title: `Delete ${itemType}?`,
+      message: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      danger: true,
+    });
+    
+    if (!confirmed) {
       return;
     }
     

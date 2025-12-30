@@ -92,6 +92,7 @@ export interface PersistedState {
   activeTabId: string | null;
   sidebarWidth?: number;
   rightPanelWidth?: number;
+  firstRunComplete?: boolean;
 }
 
 /**
