@@ -258,6 +258,31 @@ async function getEmbedding(text: string): Promise<number[]> {
 }
 
 /**
+ * Get embeddings for multiple texts in a single API call (batch processing)
+ * OpenAI supports up to 2048 inputs per request
+ */
+const EMBEDDING_BATCH_SIZE = 100; // Process 100 chunks per API call
+
+async function getBatchEmbeddings(texts: string[]): Promise<number[][]> {
+  const client = await getOpenAI();
+  if (!client) {
+    throw new Error('OpenAI API key not configured');
+  }
+  
+  // Truncate each text to 8000 chars
+  const truncatedTexts = texts.map(t => t.slice(0, 8000));
+  
+  const response = await client.embeddings.create({
+    model: 'text-embedding-3-small',
+    input: truncatedTexts,
+  });
+  
+  // Sort by index to ensure correct order
+  const sorted = response.data.sort((a, b) => a.index - b.index);
+  return sorted.map(d => d.embedding);
+}
+
+/**
  * Calculate cosine similarity between two vectors
  */
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -343,14 +368,26 @@ export async function indexWorkspace(workspacePath: string, window: BrowserWindo
       return { success: true, chunksIndexed: 0 };
     }
     
-    const chunks: DocumentChunk[] = [];
+    // Phase 1: Extract text and create chunks (without embeddings)
+    interface PendingChunk {
+      id: string;
+      filePath: string;
+      fileName: string;
+      content: string;
+      chunkIndex: number;
+      totalChunks: number;
+      pageNumber?: number;
+    }
+    const pendingChunks: PendingChunk[] = [];
+    
+    console.log(`[RAG] Phase 1: Extracting text from ${files.length} files...`);
     
     for (let i = 0; i < files.length; i++) {
       const filePath = files[i];
       const fileName = path.basename(filePath);
       const ext = path.extname(filePath).toLowerCase();
       
-      sendProgress(window, i + 1, files.length, fileName);
+      sendProgress(window, i + 1, files.length, `Extracting: ${fileName}`);
       
       // Extract text
       const text = await extractFileText(filePath, window);
@@ -367,53 +404,64 @@ export async function indexWorkspace(workspacePath: string, window: BrowserWindo
       // For PDFs, use page-aware chunking
       if (ext === '.pdf') {
         const pdfChunks = chunkPdfText(text);
-        
         for (let j = 0; j < pdfChunks.length; j++) {
-          try {
-            const embedding = await getEmbedding(pdfChunks[j].text);
-            
-            chunks.push({
-              id: `${filePath}-${j}`,
-              filePath,
-              fileName,
-              content: pdfChunks[j].text,
-              embedding,
-              chunkIndex: j,
-              totalChunks: pdfChunks.length,
-              pageNumber: pdfChunks[j].pageNumber,
-            });
-            
-            // Rate limiting - small delay between embeddings
-            await new Promise(resolve => setTimeout(resolve, 50));
-          } catch (error) {
-            console.error(`Failed to get embedding for chunk ${j} of ${fileName}:`, error);
-          }
+          pendingChunks.push({
+            id: `${filePath}-${j}`,
+            filePath,
+            fileName,
+            content: pdfChunks[j].text,
+            chunkIndex: j,
+            totalChunks: pdfChunks.length,
+            pageNumber: pdfChunks[j].pageNumber,
+          });
         }
       } else {
         // Regular chunking for non-PDF files
         const textChunks = chunkText(text);
-        
-        // Get embeddings for each chunk
         for (let j = 0; j < textChunks.length; j++) {
-          try {
-            const embedding = await getEmbedding(textChunks[j]);
-            
-            chunks.push({
-              id: `${filePath}-${j}`,
-              filePath,
-              fileName,
-              content: textChunks[j],
-              embedding,
-              chunkIndex: j,
-              totalChunks: textChunks.length,
-            });
-            
-            // Rate limiting - small delay between embeddings
-            await new Promise(resolve => setTimeout(resolve, 50));
-          } catch (error) {
-            console.error(`Failed to get embedding for chunk ${j} of ${fileName}:`, error);
-          }
+          pendingChunks.push({
+            id: `${filePath}-${j}`,
+            filePath,
+            fileName,
+            content: textChunks[j],
+            chunkIndex: j,
+            totalChunks: textChunks.length,
+          });
         }
+      }
+    }
+    
+    // Phase 2: Batch embed all chunks
+    console.log(`[RAG] Phase 2: Embedding ${pendingChunks.length} chunks in batches of ${EMBEDDING_BATCH_SIZE}...`);
+    
+    const chunks: DocumentChunk[] = [];
+    const totalBatches = Math.ceil(pendingChunks.length / EMBEDDING_BATCH_SIZE);
+    
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const start = batchIndex * EMBEDDING_BATCH_SIZE;
+      const end = Math.min(start + EMBEDDING_BATCH_SIZE, pendingChunks.length);
+      const batch = pendingChunks.slice(start, end);
+      
+      sendProgress(window, batchIndex + 1, totalBatches, `Embedding batch ${batchIndex + 1}/${totalBatches}`);
+      
+      try {
+        const texts = batch.map(c => c.content);
+        const embeddings = await getBatchEmbeddings(texts);
+        
+        for (let i = 0; i < batch.length; i++) {
+          chunks.push({
+            ...batch[i],
+            embedding: embeddings[i],
+          });
+        }
+        
+        // Small delay between batches to avoid rate limits
+        if (batchIndex < totalBatches - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } catch (error) {
+        console.error(`[RAG] Failed to embed batch ${batchIndex + 1}:`, error);
+        // Continue with next batch instead of failing completely
       }
     }
     
