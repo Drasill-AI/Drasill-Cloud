@@ -5,6 +5,14 @@ import styles from './LogEntryModal.module.css';
 const LOG_TYPES = ['preventive', 'corrective', 'emergency', 'inspection'] as const;
 type LogType = typeof LOG_TYPES[number];
 
+// Legal display names for log types
+const LOG_TYPE_DISPLAY_NAMES: Record<LogType, string> = {
+  preventive: 'Review',
+  corrective: 'Amendment',
+  emergency: 'Urgent',
+  inspection: 'Audit',
+};
+
 export function LogEntryModal() {
   const { 
     isLogModalOpen, 
@@ -187,7 +195,7 @@ export function LogEntryModal() {
                     className={`${styles.typeOption} ${styles[type]} ${formData.type === type ? styles.selected : ''}`}
                     onClick={() => setFormData(prev => ({ ...prev, type }))}
                   >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    {LOG_TYPE_DISPLAY_NAMES[type]}
                   </button>
                 ))}
               </div>

@@ -194,38 +194,60 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
     });
   };
 
-  // Get status color
+  // Get log type display name for legal context
+  const getLogTypeDisplayName = (type: string) => {
+    switch (type) {
+      case 'preventive': return 'Review';
+      case 'corrective': return 'Amendment';
+      case 'emergency': return 'Urgent';
+      case 'inspection': return 'Audit';
+      default: return type;
+    }
+  };
+
+  // Get status color - legal case statuses
   const getStatusColor = (status: Equipment['status']) => {
     switch (status) {
-      case 'operational': return '#4caf50';
-      case 'maintenance': return '#ff9800';
-      case 'down': return '#f44336';
-      case 'retired': return '#9e9e9e';
+      case 'operational': return '#4caf50'; // Active
+      case 'maintenance': return '#ff9800'; // Under Review
+      case 'down': return '#f44336'; // On Hold
+      case 'retired': return '#9e9e9e'; // Closed
       default: return '#666';
     }
   };
 
-  // Get health score color
-  const getHealthColor = (score: number) => {
+  // Get status display name for legal context
+  const getStatusDisplayName = (status: Equipment['status']) => {
+    switch (status) {
+      case 'operational': return 'Active';
+      case 'maintenance': return 'Under Review';
+      case 'down': return 'On Hold';
+      case 'retired': return 'Closed';
+      default: return status;
+    }
+  };
+
+  // Get progress score color
+  const getProgressColor = (score: number) => {
     if (score >= 80) return '#4caf50';
     if (score >= 60) return '#ff9800';
     if (score >= 40) return '#ff5722';
     return '#f44336';
   };
 
-  // Calculate health score from analytics
-  const calculateHealthScore = (analytics: EquipmentAnalytics | null): number => {
-    // If equipment is down, health is 0%
+  // Calculate progress score from analytics
+  const calculateProgressScore = (analytics: EquipmentAnalytics | null): number => {
+    // If case is on hold, progress is 0%
     if (equipmentData?.status === 'down') return 0;
     
     if (!analytics) return 100;
     
     let score = 100;
     
-    // Deduct for failures
+    // Deduct for missed deadlines
     score -= Math.min(analytics.totalFailures * 10, 40);
     
-    // Factor in availability
+    // Factor in completion rate
     if (analytics.availability !== null) {
       score = (score * analytics.availability) / 100;
     }
@@ -249,7 +271,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
     );
   }
 
-  const healthScore = calculateHealthScore(analytics);
+  const progressScore = calculateProgressScore(analytics);
 
   return (
     <div className={styles.container}>
@@ -272,13 +294,13 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
             className={styles.statusBadge}
             style={{ backgroundColor: getStatusColor(equipmentData.status || 'operational') }}
           >
-            {(equipmentData.status || 'operational').charAt(0).toUpperCase() + (equipmentData.status || 'operational').slice(1)}
+            {getStatusDisplayName(equipmentData.status || 'operational')}
           </span>
-          <div className={styles.healthScore} style={{ borderColor: getHealthColor(healthScore) }}>
-            <span className={styles.healthValue} style={{ color: getHealthColor(healthScore) }}>
-              {healthScore}%
+          <div className={styles.healthScore} style={{ borderColor: getProgressColor(progressScore) }}>
+            <span className={styles.healthValue} style={{ color: getProgressColor(progressScore) }}>
+              {progressScore}%
             </span>
-            <span className={styles.healthLabel}>Health</span>
+            <span className={styles.healthLabel}>Progress</span>
           </div>
         </div>
       </div>
@@ -387,7 +409,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                       </div>
                       <div className={styles.stat}>
                         <span className={styles.statValue}>{failureEvents.length}</span>
-                        <span className={styles.statLabel}>Failures</span>
+                        <span className={styles.statLabel}>Deadlines</span>
                       </div>
                       <div className={styles.stat}>
                         <span className={styles.statValue}>{associatedFiles.length}</span>
@@ -397,7 +419,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                         <span className={styles.statValue}>
                           {analytics?.availability != null ? `${analytics.availability.toFixed(0)}%` : 'N/A'}
                         </span>
-                        <span className={styles.statLabel}>Availability</span>
+                        <span className={styles.statLabel}>Completion</span>
                       </div>
                     </div>
                   </div>
@@ -412,7 +434,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                         {logs.slice(0, 5).map(log => (
                           <div key={log.id} className={styles.activityItem} onClick={() => handleEditLog(log)}>
                             <span className={`${styles.activityType} ${styles[log.type]}`}>
-                              {log.type}
+                              {getLogTypeDisplayName(log.type)}
                             </span>
                             <span className={styles.activityDate}>{formatDateTime(log.startedAt)}</span>
                             <span className={styles.activityNote}>{log.notes || 'No notes'}</span>
@@ -459,7 +481,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     {logs.map(log => (
                       <div key={log.id} className={styles.tableRow} onClick={() => handleEditLog(log)}>
                         <span>{formatDateTime(log.startedAt)}</span>
-                        <span className={`${styles.logType} ${styles[log.type]}`}>{log.type}</span>
+                        <span className={`${styles.logType} ${styles[log.type]}`}>{getLogTypeDisplayName(log.type)}</span>
                         <span>{log.technician || 'Unknown'}</span>
                         <span>{log.durationMinutes ? `${log.durationMinutes} min` : 'N/A'}</span>
                         <span className={styles.logNotes}>{log.notes || 'No notes'}</span>
@@ -637,7 +659,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     </div>
                   </div>
 
-                  {/* Availability Card */}
+                  {/* Completion Rate Card */}
                   <div className={styles.analyticsCard}>
                     <div className={styles.analyticsIcon}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -645,16 +667,16 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                         <polyline points="22 4 12 14.01 9 11.01" />
                       </svg>
                     </div>
-                    <div className={styles.analyticsValue} style={{ color: getHealthColor(analytics?.availability || 0) }}>
+                    <div className={styles.analyticsValue} style={{ color: getProgressColor(analytics?.availability || 0) }}>
                       {analytics?.availability != null ? `${analytics.availability.toFixed(1)}%` : 'N/A'}
                     </div>
-                    <div className={styles.analyticsLabel}>Availability</div>
+                    <div className={styles.analyticsLabel}>Completion Rate</div>
                     <div className={styles.analyticsHint}>
-                      Case availability rate
+                      Case completion rate
                     </div>
                   </div>
 
-                  {/* Total Issues Card */}
+                  {/* Total Deadlines Card */}
                   <div className={styles.analyticsCard}>
                     <div className={styles.analyticsIcon} style={{ color: '#f44336' }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -666,7 +688,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     <div className={styles.analyticsValue}>
                       {analytics?.totalFailures ?? 0}
                     </div>
-                    <div className={styles.analyticsLabel}>Total Issues</div>
+                    <div className={styles.analyticsLabel}>Total Deadlines</div>
                     <div className={styles.analyticsHint}>
                       Recorded case issues
                     </div>
