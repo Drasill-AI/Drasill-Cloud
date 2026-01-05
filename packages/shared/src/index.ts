@@ -123,6 +123,7 @@ export const IPC_CHANNELS = {
   RAG_INDEX_COMPLETE: 'rag-index-complete',
   RAG_SEARCH: 'rag-search',
   RAG_GET_STATUS: 'rag-get-status',
+  RAG_LOAD_CACHE: 'rag-load-cache',
   RAG_CLEAR: 'rag-clear',
   // State persistence
   STATE_SAVE: 'state-save',

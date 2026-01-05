@@ -93,6 +93,7 @@ interface AppState {
   // RAG actions
   indexWorkspace: () => Promise<void>;
   checkRagStatus: () => Promise<void>;
+  loadRagCache: (workspacePath: string) => Promise<boolean>;
   clearRagIndex: () => Promise<void>;
 
   // State persistence
@@ -670,10 +671,32 @@ export const useAppStore = create<AppState>((set, get) => ({
   checkRagStatus: async () => {
     try {
       const status = await window.electronAPI.getRagStatus();
-      set({ isIndexing: status.isIndexing, ragChunksCount: status.chunksCount });
+      set({ 
+        isIndexing: status.isIndexing, 
+        ragChunksCount: status.chunksCount,
+      });
     } catch {
       // Ignore errors
     }
+  },
+
+  // Try to load cached RAG embeddings for a workspace
+  loadRagCache: async (workspacePath: string) => {
+    try {
+      const loaded = await window.electronAPI.loadRagCache(workspacePath);
+      if (loaded) {
+        const status = await window.electronAPI.getRagStatus();
+        set({ ragChunksCount: status.chunksCount });
+        if (status.lastUpdated) {
+          const date = new Date(status.lastUpdated).toLocaleString();
+          console.log(`[Store] Loaded RAG cache: ${status.chunksCount} chunks (indexed: ${date})`);
+        }
+        return true;
+      }
+    } catch {
+      // Ignore errors
+    }
+    return false;
   },
 
   clearRagIndex: async () => {
@@ -750,6 +773,33 @@ export const useAppStore = create<AppState>((set, get) => ({
           children,
         }],
       });
+      
+      // Load all workspace folders
+      const newTree: TreeNode[] = [];
+      for (const folderPath of paths) {
+        try {
+          const children = await get().loadDirectory(folderPath);
+          newTree.push({
+            id: folderPath,
+            name: folderPath.split(/[\\/]/).pop() || folderPath,
+            path: folderPath,
+            isDirectory: true,
+            isExpanded: true,
+            children,
+          });
+        } catch (err) {
+          console.warn(`Failed to load workspace folder: ${folderPath}`, err);
+        }
+      }
+      set({ tree: newTree });
+      
+      // Try to load cached RAG embeddings for the primary workspace
+      if (paths[0]) {
+        const loaded = await get().loadRagCache(paths[0]);
+        if (loaded) {
+          console.log('[Store] Successfully loaded cached RAG embeddings');
+        }
+      }
     } catch (error) {
       get().showToast('error', `Failed to restore workspace: ${error}`);
     }
