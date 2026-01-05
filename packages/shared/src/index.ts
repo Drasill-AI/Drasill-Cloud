@@ -85,6 +85,8 @@ export interface FileReadResult {
  */
 export interface PersistedState {
   workspacePath: string | null;
+  /** Multiple workspace folders - new multi-folder support */
+  workspacePaths?: string[];
   openTabs: Array<{
     id: string;
     name: string;
@@ -102,6 +104,8 @@ export interface PersistedState {
  */
 export const IPC_CHANNELS = {
   SELECT_WORKSPACE: 'select-workspace',
+  ADD_WORKSPACE_FOLDER: 'add-workspace-folder',
+  REMOVE_WORKSPACE_FOLDER: 'remove-workspace-folder',
   READ_DIR: 'read-dir',
   READ_FILE: 'read-file',
   READ_FILE_BINARY: 'read-file-binary',
@@ -402,11 +406,18 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 }
 
 // ==========================================
-// Equipment & Maintenance Log Types
+// Case & Activity Log Types
 // ==========================================
 
 /**
- * Equipment record
+ * Case/Matter record
+ * Maps to: Equipment table in database
+ * - make = Case Type (e.g., Civil, Criminal, Corporate)
+ * - model = Court (e.g., District Court, Appeals Court)
+ * - serialNumber = Case/Docket Number
+ * - location = Jurisdiction
+ * - installDate = Filing Date
+ * - status: operational=active, maintenance=in review, down=on hold, retired=closed
  */
 export interface Equipment {
   id?: string;
@@ -425,7 +436,11 @@ export interface Equipment {
 }
 
 /**
- * Maintenance log entry
+ * Activity log entry
+ * Maps to: MaintenanceLog table in database
+ * - type: preventive=research, corrective=filing, emergency=hearing, inspection=review
+ * - technician = Attorney/Paralegal name
+ * - partsUsed = Documents Referenced
  */
 export interface MaintenanceLog {
   id?: string;
@@ -441,7 +456,7 @@ export interface MaintenanceLog {
 }
 
 /**
- * Failure event record
+ * Issue/Deadline event record
  */
 export interface FailureEvent {
   id?: string;
@@ -454,19 +469,22 @@ export interface FailureEvent {
 }
 
 /**
- * Equipment analytics data
+ * Case analytics data
+ * - mtbf = Total billable hours
+ * - mttr = Average resolution time
+ * - availability = Case progress percentage
  */
 export interface EquipmentAnalytics {
   equipmentId: string;
-  mtbf: number | null; // Mean Time Between Failures (hours)
-  mttr: number | null; // Mean Time To Repair (hours)
-  availability: number | null; // Percentage (0-100)
+  mtbf: number | null;
+  mttr: number | null;
+  availability: number | null;
   totalFailures: number;
   totalMaintenanceLogs: number;
   lastMaintenanceDate: string | null;
   lastMaintenanceType: string | null;
   predictedNextMaintenance: string | null;
-  healthScore?: number; // 0-100 (computed on frontend)
+  healthScore?: number;
 }
 
 /**
@@ -517,26 +535,27 @@ export interface FileEquipmentAssociation {
 }
 
 // ==========================================
-// Work Order Types
+// Task Types (formerly Work Orders)
 // ==========================================
 
 /**
- * Work order status values
+ * Task status values
  */
 export type WorkOrderStatus = 'draft' | 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
 
 /**
- * Work order priority values
+ * Task priority values
  */
 export type WorkOrderPriority = 'low' | 'medium' | 'high' | 'critical';
 
 /**
- * Work order type values (same as maintenance log types)
+ * Task type values
+ * preventive=research, corrective=filing, emergency=hearing, inspection=review
  */
 export type WorkOrderType = 'preventive' | 'corrective' | 'emergency' | 'inspection';
 
 /**
- * Work order record
+ * Task/Assignment record
  */
 export interface WorkOrder {
   id?: string;

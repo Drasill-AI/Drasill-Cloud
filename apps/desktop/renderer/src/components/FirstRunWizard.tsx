@@ -87,35 +87,35 @@ export function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
   const renderWelcome = () => (
     <div className={styles.stepContent}>
       <img src={logoImage} alt="Drasill" className={styles.logo} />
-      <h1 className={styles.title}>Welcome to Drasill Cloud</h1>
-      <p className={styles.subtitle}>AI-Powered Equipment Fleet Management</p>
+      <h1 className={styles.title}>Welcome to Drasill Legal</h1>
+      <p className={styles.subtitle}>AI-Powered Legal Case Management</p>
       <div className={styles.features}>
         <div className={styles.feature}>
           <span className={styles.featureNumber}>01</span>
           <div>
             <h3>Document Management</h3>
-            <p>Organize manuals, schematics, and technical documents</p>
+            <p>Organize case files, briefs, and legal documents</p>
           </div>
         </div>
         <div className={styles.feature}>
           <span className={styles.featureNumber}>02</span>
           <div>
-            <h3>Equipment Tracking</h3>
-            <p>Track your fleet with maintenance logs and work orders</p>
+            <h3>Case Tracking</h3>
+            <p>Track your caseload with activity logs and tasks</p>
           </div>
         </div>
         <div className={styles.feature}>
           <span className={styles.featureNumber}>03</span>
           <div>
             <h3>AI Assistant</h3>
-            <p>Get instant answers from your technical documentation</p>
+            <p>Get instant answers from your legal documents</p>
           </div>
         </div>
         <div className={styles.feature}>
           <span className={styles.featureNumber}>04</span>
           <div>
-            <h3>CV Detection</h3>
-            <p>Automatically identify equipment from schematics</p>
+            <h3>Legal Research</h3>
+            <p>Search across statutes, case law, and regulations</p>
           </div>
         </div>
       </div>
@@ -131,8 +131,8 @@ export function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
       <span className={styles.stepNumber}>1</span>
       <h2 className={styles.stepTitle}>Select Your Workspace</h2>
       <p className={styles.stepDescription}>
-        Choose a folder containing your equipment manuals, schematics, and technical documents.
-        Drasill Cloud will index these files for AI-powered search and analysis.
+        Choose a folder containing your case files, legal documents, and research materials.
+        Drasill Legal will index these files for AI-powered search and analysis.
       </p>
       
       {workspacePath ? (
@@ -234,16 +234,16 @@ export function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
   const renderEquipment = () => (
     <div className={styles.stepContent}>
       <span className={styles.stepNumber}>3</span>
-      <h2 className={styles.stepTitle}>Equipment Setup</h2>
+      <h2 className={styles.stepTitle}>Case Setup</h2>
       <p className={styles.stepDescription}>
-        You can add equipment manually or import from a CSV file.
-        Equipment can also be added later from the Equipment panel.
+        You can add cases manually or import from a CSV file.
+        Cases can also be added later from the Cases panel.
       </p>
 
       <div className={styles.optionCards}>
         <div className={styles.optionCard}>
           <h3>Add Manually</h3>
-          <p>Add equipment one at a time with full details</p>
+          <p>Add cases one at a time with full details</p>
         </div>
         <div className={styles.optionCard}>
           <h3>Import CSV</h3>
@@ -251,7 +251,7 @@ export function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
         </div>
       </div>
 
-      <p className={styles.optionNote}>Both options available in the Equipment panel</p>
+      <p className={styles.optionNote}>Both options available in the Cases panel</p>
 
       <div className={styles.buttonRow}>
         <button className={styles.backButton} onClick={handleBack}>
@@ -269,7 +269,7 @@ export function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
       <span className={styles.completeCheck}>✓</span>
       <h2 className={styles.stepTitle}>You're All Set</h2>
       <p className={styles.stepDescription}>
-        Drasill Cloud is ready to help you manage your equipment fleet.
+        Drasill Legal is ready to help you manage your caseload.
       </p>
 
       <div className={styles.quickTips}>
@@ -283,7 +283,7 @@ export function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
       </div>
 
       <button className={styles.primaryButton} onClick={handleFinish}>
-        Start Using Drasill Cloud
+        Start Using Drasill Legal
         <span className={styles.arrow}>→</span>
       </button>
     </div>

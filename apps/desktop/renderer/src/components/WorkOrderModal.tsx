@@ -119,7 +119,7 @@ export function WorkOrderModal() {
     e.preventDefault();
     
     if (!formData.equipmentId) {
-      showToast('error', 'Please select equipment');
+      showToast('error', 'Please select a case');
       return;
     }
 
@@ -151,16 +151,16 @@ export function WorkOrderModal() {
 
       if (isEditMode && editingWorkOrder?.id) {
         await window.electronAPI.updateWorkOrder(editingWorkOrder.id, workOrderData);
-        showToast('success', 'Work order updated successfully');
+        showToast('success', 'Task updated successfully');
       } else {
         await window.electronAPI.addWorkOrder(workOrderData);
-        showToast('success', 'Work order created successfully');
+        showToast('success', 'Task created successfully');
       }
 
       handleClose();
       refreshWorkOrders();
     } catch (error) {
-      showToast('error', isEditMode ? 'Failed to update work order' : 'Failed to create work order');
+      showToast('error', isEditMode ? 'Failed to update task' : 'Failed to create task');
     } finally {
       setIsSubmitting(false);
     }
@@ -169,17 +169,17 @@ export function WorkOrderModal() {
   const handleDelete = async () => {
     if (!editingWorkOrder?.id) return;
 
-    const confirmed = confirm('Are you sure you want to delete this work order? This action cannot be undone.');
+    const confirmed = confirm('Are you sure you want to delete this task? This action cannot be undone.');
     if (!confirmed) return;
 
     setIsDeleting(true);
     try {
       await window.electronAPI.deleteWorkOrder(editingWorkOrder.id);
-      showToast('success', 'Work order deleted');
+      showToast('success', 'Task deleted');
       handleClose();
       refreshWorkOrders();
     } catch (error) {
-      showToast('error', 'Failed to delete work order');
+      showToast('error', 'Failed to delete task');
     } finally {
       setIsDeleting(false);
     }
@@ -197,7 +197,7 @@ export function WorkOrderModal() {
               <rect x="9" y="3" width="6" height="4" rx="1" />
               <path d="M9 14l2 2 4-4" />
             </svg>
-            {isEditMode ? 'Edit Work Order' : 'Create Work Order'}
+            {isEditMode ? 'Edit Task' : 'Create Task'}
           </span>
           <button className={styles.closeButton} onClick={handleClose}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -230,7 +230,7 @@ export function WorkOrderModal() {
 
             <div className={styles.formGroup}>
               <label className={styles.label}>
-                Equipment <span className={styles.required}>*</span>
+                Case <span className={styles.required}>*</span>
               </label>
               <select
                 className={styles.select}
@@ -238,7 +238,7 @@ export function WorkOrderModal() {
                 onChange={(e) => setFormData(prev => ({ ...prev, equipmentId: e.target.value }))}
                 required
               >
-                <option value="" disabled>Select equipment...</option>
+                <option value="" disabled>Select case...</option>
                 {equipment.map(eq => (
                   <option key={eq.id} value={eq.id}>
                     {eq.make} {eq.model} {eq.serialNumber ? `(${eq.serialNumber})` : ''}
@@ -295,13 +295,13 @@ export function WorkOrderModal() {
 
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label className={styles.label}>Technician</label>
+                <label className={styles.label}>Attorney</label>
                 <input
                   type="text"
                   className={styles.input}
                   value={formData.technician}
                   onChange={(e) => setFormData(prev => ({ ...prev, technician: e.target.value }))}
-                  placeholder="Assigned technician"
+                  placeholder="Assigned attorney"
                 />
               </div>
 
@@ -352,13 +352,13 @@ export function WorkOrderModal() {
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Parts Required</label>
+              <label className={styles.label}>Documents Required</label>
               <input
                 type="text"
                 className={styles.input}
                 value={formData.partsRequired}
                 onChange={(e) => setFormData(prev => ({ ...prev, partsRequired: e.target.value }))}
-                placeholder="List parts needed (comma separated)"
+                placeholder="List documents needed (comma separated)"
               />
             </div>
 
@@ -397,7 +397,7 @@ export function WorkOrderModal() {
                 className={styles.submitButton}
                 disabled={isSubmitting || isDeleting || !formData.equipmentId || !formData.title.trim()}
               >
-                {isSubmitting ? 'Saving...' : (isEditMode ? 'Update Work Order' : 'Create Work Order')}
+                {isSubmitting ? 'Saving...' : (isEditMode ? 'Update Task' : 'Create Task')}
               </button>
             </div>
           </div>

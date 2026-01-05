@@ -81,7 +81,7 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
 
   const getEquipmentName = (equipmentId: string) => {
     const eq = equipment.find(e => e.id === equipmentId);
-    return eq ? `${eq.make} ${eq.model}` : `Equipment #${equipmentId}`;
+    return eq ? (eq.name || `${eq.make} ${eq.model}`) : `Case #${equipmentId}`;
   };
 
   const getHealthClass = (score: number | undefined) => {
@@ -191,10 +191,10 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
                   value={selectedEquipmentId}
                   onChange={(e) => setSelectedEquipmentId(e.target.value === 'all' ? 'all' : e.target.value)}
                 >
-                  <option value="all">All Equipment</option>
+                  <option value="all">All Cases</option>
                   {equipment.map(eq => (
                     <option key={eq.id} value={eq.id}>
-                      {eq.make} {eq.model} {eq.serialNumber ? `(${eq.serialNumber})` : ''}
+                      {eq.name || `${eq.make} ${eq.model}`} {eq.serialNumber ? `(${eq.serialNumber})` : ''}
                     </option>
                   ))}
                 </select>
@@ -206,7 +206,7 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                  Add Log Entry
+                  Add Activity Log
                 </button>
               </div>
 
@@ -221,8 +221,8 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
-                    <p>No maintenance logs yet</p>
-                    <p>Click "Add Log Entry" to record maintenance activities</p>
+                    <p>No activity logs yet</p>
+                    <p>Click "Add Activity Log" to record case activities</p>
                   </div>
                 ) : (
                   logs.map(log => (
@@ -254,10 +254,10 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
                   value={selectedEquipmentId}
                   onChange={(e) => setSelectedEquipmentId(e.target.value === 'all' ? 'all' : e.target.value)}
                 >
-                  <option value="all">All Equipment</option>
+                  <option value="all">All Cases</option>
                   {equipment.map(eq => (
                     <option key={eq.id} value={eq.id}>
-                      {eq.make} {eq.model}
+                      {eq.name || `${eq.make} ${eq.model}`}
                     </option>
                   ))}
                 </select>
@@ -276,7 +276,7 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
                       <line x1="6" y1="20" x2="6" y2="14" />
                     </svg>
                     <p>No analytics data available</p>
-                    <p>Add equipment and maintenance logs to see metrics</p>
+                    <p>Add cases and activity logs to see metrics</p>
                   </div>
                 ) : (
                   analytics.map(item => {

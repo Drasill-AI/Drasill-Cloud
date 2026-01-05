@@ -2,7 +2,7 @@
   "name": "@drasill/desktop",
   "version": "1.2.1",
   "private": true,
-  "description": "Drasill Cloud Desktop App with AI-Powered Schematic Visualizer",
+  "description": "Drasill Legal Desktop App with AI-Powered Document Analysis",
   "author": "Drasill AI LLC",
   "main": "dist/main/index.js",
   "scripts": {
@@ -53,8 +53,8 @@
     "zustand": "^4.5.0"
   },
   "build": {
-    "appId": "com.drasill.cloud",
-    "productName": "Drasill Cloud",
+    "appId": "com.drasill.legal",
+    "productName": "Drasill Legal",
     "icon": "assets/icon.ico",
     "directories": {
       "output": "release"

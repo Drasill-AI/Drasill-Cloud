@@ -24,7 +24,7 @@ export function TopBar() {
   const handleDeleteEquipment = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation(); // Prevent selecting the equipment
     
-    if (!confirm('Delete this equipment? This will also delete all associated logs.')) {
+    if (!confirm('Delete this case? This will also delete all associated activity logs.')) {
       return;
     }
     
@@ -32,16 +32,16 @@ export function TopBar() {
     try {
       const success = await window.electronAPI.deleteEquipment(id);
       if (success) {
-        showToast('success', 'Equipment deleted');
+        showToast('success', 'Case deleted');
         if (selectedEquipmentId === id) {
           setSelectedEquipment(null);
         }
         loadEquipment();
       } else {
-        showToast('error', 'Failed to delete equipment');
+        showToast('error', 'Failed to delete case');
       }
     } catch (err) {
-      showToast('error', 'Failed to delete equipment');
+      showToast('error', 'Failed to delete case');
     } finally {
       setDeletingId(null);
     }
@@ -76,7 +76,7 @@ export function TopBar() {
   return (
     <div className={styles.topBar}>
       <div className={styles.leftSection}>
-        <span className={styles.label}>Equipment</span>
+        <span className={styles.label}>Case</span>
         
         <div className={styles.equipmentDropdown} ref={dropdownRef}>
           <button 
@@ -90,7 +90,7 @@ export function TopBar() {
             <span>
               {selectedEquipment 
                 ? `${selectedEquipment.make} ${selectedEquipment.model}`
-                : 'Select Equipment'
+                : 'Select Case'
               }
             </span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -101,7 +101,7 @@ export function TopBar() {
           {isDropdownOpen && (
             <div className={styles.dropdownMenu}>
               <div className={styles.dropdownHeader}>
-                <span className={styles.dropdownTitle}>Equipment List</span>
+                <span className={styles.dropdownTitle}>Case List</span>
                 <div className={styles.headerButtons}>
                   <button 
                     className={styles.csvButton}
@@ -110,7 +110,7 @@ export function TopBar() {
                       try {
                         const result = await window.electronAPI.importEquipmentCSV();
                         if (result.success) {
-                          showToast('success', `Imported ${result.imported} equipment${result.skipped > 0 ? `, ${result.skipped} skipped` : ''}`);
+                          showToast('success', `Imported ${result.imported} case(s)${result.skipped > 0 ? `, ${result.skipped} skipped` : ''}`);
                           loadEquipment();
                         } else if (result.errors.length > 0) {
                           showToast('error', result.errors[0].message);
@@ -122,7 +122,7 @@ export function TopBar() {
                       }
                     }}
                     disabled={isImporting}
-                    title="Import equipment from CSV"
+                    title="Import cases from CSV"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -138,7 +138,7 @@ export function TopBar() {
                       try {
                         const result = await window.electronAPI.exportEquipmentCSV();
                         if (result.success) {
-                          showToast('success', 'Equipment exported successfully');
+                          showToast('success', 'Cases exported successfully');
                         } else if (result.error) {
                           showToast('error', result.error);
                         }
@@ -149,7 +149,7 @@ export function TopBar() {
                       }
                     }}
                     disabled={isExporting || equipment.length === 0}
-                    title="Export equipment to CSV"
+                    title="Export cases to CSV"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -181,7 +181,7 @@ export function TopBar() {
                       <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                     </svg>
-                    <p>No equipment registered</p>
+                    <p>No cases registered</p>
                     <button 
                       className={styles.manageButton}
                       onClick={() => {
@@ -193,7 +193,7 @@ export function TopBar() {
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
                       </svg>
-                      Add Equipment
+                      Add Case
                     </button>
                   </div>
                 ) : (
@@ -216,7 +216,7 @@ export function TopBar() {
                             {eq.name || `${eq.make} ${eq.model}`}
                           </div>
                           {eq.serialNumber && (
-                            <div className={styles.equipmentSerial}>SN: {eq.serialNumber}</div>
+                            <div className={styles.equipmentSerial}>Case #: {eq.serialNumber}</div>
                           )}
                         </div>
                         {detectedEquipment?.id === eq.id && (
@@ -227,7 +227,7 @@ export function TopBar() {
                         className={styles.deleteEquipmentButton}
                         onClick={(e) => handleDeleteEquipment(e, eq.id!)}
                         disabled={deletingId === eq.id}
-                        title="Delete equipment"
+                        title="Delete case"
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <polyline points="3 6 5 6 21 6" />
@@ -260,7 +260,7 @@ export function TopBar() {
         <button
           className={styles.iconButton}
           onClick={() => setEquipmentModalOpen(true)}
-          title="Manage Equipment"
+          title="Manage Cases"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3" />

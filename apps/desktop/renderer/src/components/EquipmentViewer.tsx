@@ -1,6 +1,6 @@
 /**
- * EquipmentViewer - Comprehensive equipment detail view
- * Shows logs, records, associated files, and analytics for a piece of equipment
+ * EquipmentViewer - Comprehensive case detail view
+ * Shows logs, records, associated files, and analytics for a case
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store';
@@ -65,13 +65,13 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
 
   // Generate sample analytics data
   const handleGenerateSampleData = async () => {
-    if (!confirm('Generate sample failure events and maintenance logs for testing analytics?\n\nThis will create:\n• 5 failure events\n• 8 maintenance logs')) {
+    if (!confirm('Generate sample activity events and logs for testing analytics?\n\nThis will create:\n• 5 issue events\n• 8 activity logs')) {
       return;
     }
     
     try {
       const result = await window.electronAPI.generateSampleAnalyticsData(equipmentId);
-      showToast('success', `Generated ${result.failuresCreated} failures and ${result.logsCreated} maintenance logs`);
+      showToast('success', `Generated ${result.failuresCreated} issues and ${result.logsCreated} activity logs`);
       loadData(); // Refresh the data
       refreshLogs(); // Trigger refresh in other components
     } catch (error) {
@@ -99,21 +99,21 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
     }
   };
 
-  // Tag an existing file to this equipment
+  // Tag an existing file to this case
   const handleTagFile = async () => {
     setIsTaggingFile(true);
     try {
       const { tree } = useAppStore.getState();
       // For now, show a simple prompt - in production you'd use a file picker modal
-      const filePath = prompt('Enter the file path to associate with this equipment:');
+      const filePath = prompt('Enter the file path to associate with this case:');
       if (!filePath) {
         setIsTaggingFile(false);
         return;
       }
 
-      // Check for duplicate - prevent same file being added twice to this equipment
+      // Check for duplicate - prevent same file being added twice to this case
       if (associatedFiles.some(f => f.filePath === filePath)) {
-        showToast('error', 'This file is already associated with this equipment');
+        showToast('error', 'This file is already associated with this case');
         setIsTaggingFile(false);
         return;
       }
@@ -134,7 +134,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
         notes: null,
       });
 
-      showToast('success', `File "${fileName}" associated with equipment`);
+      showToast('success', `File "${fileName}" associated with case`);
       loadData();
     } catch (error) {
       showToast('error', 'Failed to tag file');
@@ -145,7 +145,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
 
   // Remove file association
   const handleRemoveFileAssociation = async (filePath: string, fileName: string) => {
-    if (!confirm(`Remove "${fileName}" from this equipment?`)) return;
+    if (!confirm(`Remove "${fileName}" from this case?`)) return;
     
     try {
       await window.electronAPI.removeFileAssociation(equipmentId, filePath);
@@ -242,8 +242,8 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          <h3>Equipment Not Found</h3>
-          <p>The equipment with ID "{equipmentId}" could not be found.</p>
+          <h3>Case Not Found</h3>
+          <p>The case with ID "{equipmentId}" could not be found.</p>
         </div>
       </div>
     );
@@ -337,7 +337,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
             <path d="M9 11l3 3L22 4" />
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
           </svg>
-          Work Orders ({workOrders.filter(wo => wo.status !== 'completed' && wo.status !== 'cancelled').length})
+          Tasks ({workOrders.filter(wo => wo.status !== 'completed' && wo.status !== 'cancelled').length})
         </button>
       </div>
 
@@ -346,7 +346,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
         {isLoading ? (
           <div className={styles.loading}>
             <div className={styles.spinner} />
-            <p>Loading equipment data...</p>
+            <p>Loading case data...</p>
           </div>
         ) : (
           <>
@@ -354,25 +354,25 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
             {activeSection === 'overview' && (
               <div className={styles.overview}>
                 <div className={styles.overviewGrid}>
-                  {/* Equipment Details Card */}
+                  {/* Case Details Card */}
                   <div className={styles.card}>
-                    <h3 className={styles.cardTitle}>Equipment Details</h3>
+                    <h3 className={styles.cardTitle}>Case Details</h3>
                     <div className={styles.detailsList}>
                       <div className={styles.detailRow}>
-                        <span className={styles.detailLabel}>Serial Number</span>
+                        <span className={styles.detailLabel}>Case Number</span>
                         <span className={styles.detailValue}>{equipmentData.serialNumber || 'N/A'}</span>
                       </div>
                       <div className={styles.detailRow}>
-                        <span className={styles.detailLabel}>Location</span>
+                        <span className={styles.detailLabel}>Jurisdiction</span>
                         <span className={styles.detailValue}>{equipmentData.location || 'N/A'}</span>
                       </div>
                       <div className={styles.detailRow}>
-                        <span className={styles.detailLabel}>Install Date</span>
+                        <span className={styles.detailLabel}>Filing Date</span>
                         <span className={styles.detailValue}>{formatDate(equipmentData.installDate)}</span>
                       </div>
                       <div className={styles.detailRow}>
-                        <span className={styles.detailLabel}>Hourly Cost</span>
-                        <span className={styles.detailValue}>${equipmentData.hourlyCost.toFixed(2)}/hr</span>
+                        <span className={styles.detailLabel}>Hourly Rate</span>
+                        <span className={styles.detailValue}>${(equipmentData.hourlyCost ?? 0).toFixed(2)}/hr</span>
                       </div>
                     </div>
                   </div>
@@ -383,7 +383,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     <div className={styles.statsGrid}>
                       <div className={styles.stat}>
                         <span className={styles.statValue}>{logs.length}</span>
-                        <span className={styles.statLabel}>Total Logs</span>
+                        <span className={styles.statLabel}>Activity Logs</span>
                       </div>
                       <div className={styles.stat}>
                         <span className={styles.statValue}>{failureEvents.length}</span>
@@ -395,7 +395,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                       </div>
                       <div className={styles.stat}>
                         <span className={styles.statValue}>
-                          {analytics?.availability !== null ? `${analytics.availability.toFixed(0)}%` : 'N/A'}
+                          {analytics?.availability != null ? `${analytics.availability.toFixed(0)}%` : 'N/A'}
                         </span>
                         <span className={styles.statLabel}>Availability</span>
                       </div>
@@ -406,7 +406,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                   <div className={styles.card + ' ' + styles.cardWide}>
                     <h3 className={styles.cardTitle}>Recent Activity</h3>
                     {logs.length === 0 ? (
-                      <p className={styles.emptyText}>No maintenance logs recorded</p>
+                      <p className={styles.emptyText}>No activity logs recorded</p>
                     ) : (
                       <div className={styles.activityList}>
                         {logs.slice(0, 5).map(log => (
@@ -429,7 +429,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
             {activeSection === 'logs' && (
               <div className={styles.logsSection}>
                 <div className={styles.sectionHeader}>
-                  <h3>Maintenance Logs</h3>
+                  <h3>Activity Logs</h3>
                   <button className={styles.addButton} onClick={handleAddLog}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <line x1="12" y1="5" x2="12" y2="19" />
@@ -444,7 +444,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
-                    <p>No maintenance logs yet</p>
+                    <p>No activity logs yet</p>
                     <button className={styles.addButton} onClick={handleAddLog}>Add First Log</button>
                   </div>
                 ) : (
@@ -452,7 +452,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     <div className={styles.tableHeader}>
                       <span>Date</span>
                       <span>Type</span>
-                      <span>Technician</span>
+                      <span>Attorney</span>
                       <span>Duration</span>
                       <span>Notes</span>
                     </div>
@@ -470,7 +470,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
 
                 {failureEvents.length > 0 && (
                   <>
-                    <h3 className={styles.subSectionTitle}>Failure Events</h3>
+                    <h3 className={styles.subSectionTitle}>Case Issues</h3>
                     <div className={styles.logsTable}>
                       <div className={styles.tableHeader}>
                         <span>Occurred</span>
@@ -594,7 +594,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                 {/* Generate Sample Data Button */}
                 {(!analytics?.mtbf && !analytics?.mttr) && (
                   <div className={styles.sampleDataPrompt}>
-                    <p>No analytics data available yet. Analytics are calculated from failure events and maintenance logs.</p>
+                    <p>No analytics data available yet. Analytics are calculated from case events and activity logs.</p>
                     <button className={styles.generateButton} onClick={handleGenerateSampleData}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -613,11 +613,11 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                       </svg>
                     </div>
                     <div className={styles.analyticsValue}>
-                      {analytics?.mtbf !== null ? `${analytics.mtbf.toFixed(1)} hrs` : 'N/A'}
+                      {analytics?.mtbf != null ? `${analytics.mtbf.toFixed(1)} hrs` : 'N/A'}
                     </div>
-                    <div className={styles.analyticsLabel}>Mean Time Between Failures</div>
+                    <div className={styles.analyticsLabel}>Avg. Days Between Issues</div>
                     <div className={styles.analyticsHint}>
-                      Higher is better - indicates reliability
+                      Higher is better - indicates stability
                     </div>
                   </div>
 
@@ -629,11 +629,11 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                       </svg>
                     </div>
                     <div className={styles.analyticsValue}>
-                      {analytics?.mttr !== null ? `${analytics.mttr.toFixed(1)} hrs` : 'N/A'}
+                      {analytics?.mttr != null ? `${analytics.mttr.toFixed(1)} hrs` : 'N/A'}
                     </div>
-                    <div className={styles.analyticsLabel}>Mean Time To Repair</div>
+                    <div className={styles.analyticsLabel}>Avg. Resolution Time</div>
                     <div className={styles.analyticsHint}>
-                      Lower is better - indicates quick repairs
+                      Lower is better - indicates quick resolution
                     </div>
                   </div>
 
@@ -646,15 +646,15 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                       </svg>
                     </div>
                     <div className={styles.analyticsValue} style={{ color: getHealthColor(analytics?.availability || 0) }}>
-                      {analytics?.availability !== null ? `${analytics.availability.toFixed(1)}%` : 'N/A'}
+                      {analytics?.availability != null ? `${analytics.availability.toFixed(1)}%` : 'N/A'}
                     </div>
                     <div className={styles.analyticsLabel}>Availability</div>
                     <div className={styles.analyticsHint}>
-                      Percentage of uptime
+                      Case availability rate
                     </div>
                   </div>
 
-                  {/* Total Failures Card */}
+                  {/* Total Issues Card */}
                   <div className={styles.analyticsCard}>
                     <div className={styles.analyticsIcon} style={{ color: '#f44336' }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -666,13 +666,13 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     <div className={styles.analyticsValue}>
                       {analytics?.totalFailures ?? 0}
                     </div>
-                    <div className={styles.analyticsLabel}>Total Failures</div>
+                    <div className={styles.analyticsLabel}>Total Issues</div>
                     <div className={styles.analyticsHint}>
-                      Recorded failure events
+                      Recorded case issues
                     </div>
                   </div>
 
-                  {/* Last Maintenance Card */}
+                  {/* Last Activity Card */}
                   <div className={styles.analyticsCard + ' ' + styles.cardWide}>
                     <div className={styles.analyticsIcon}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -685,13 +685,13 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     <div className={styles.analyticsValue}>
                       {formatDate(analytics?.lastMaintenanceDate)}
                     </div>
-                    <div className={styles.analyticsLabel}>Last Maintenance</div>
+                    <div className={styles.analyticsLabel}>Last Activity</div>
                     <div className={styles.analyticsHint}>
                       Type: {analytics?.lastMaintenanceType || 'N/A'}
                     </div>
                   </div>
 
-                  {/* Predicted Next Maintenance Card */}
+                  {/* Predicted Next Activity Card */}
                   <div className={styles.analyticsCard + ' ' + styles.cardWide}>
                     <div className={styles.analyticsIcon} style={{ color: '#ff9800' }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -702,7 +702,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                     <div className={styles.analyticsValue}>
                       {formatDate(analytics?.predictedNextMaintenance)}
                     </div>
-                    <div className={styles.analyticsLabel}>Predicted Next Maintenance</div>
+                    <div className={styles.analyticsLabel}>Predicted Next Review</div>
                     <div className={styles.analyticsHint}>
                       Based on historical patterns
                     </div>
@@ -711,11 +711,11 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
               </div>
             )}
 
-            {/* Work Orders Section */}
+            {/* Tasks Section */}
             {activeSection === 'workorders' && (
               <div className={styles.workOrdersSection}>
                 <div className={styles.sectionHeader}>
-                  <h3>Work Orders</h3>
+                  <h3>Tasks</h3>
                   <button 
                     className={styles.addButton}
                     onClick={() => {
@@ -727,7 +727,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
-                    New Work Order
+                    New Task
                   </button>
                 </div>
 
@@ -737,7 +737,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                       <path d="M9 11l3 3L22 4" />
                       <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                     </svg>
-                    <p>No work orders for this equipment</p>
+                    <p>No tasks for this case</p>
                     <button 
                       className={styles.createFirstButton}
                       onClick={() => {
@@ -745,7 +745,7 @@ export function EquipmentViewer({ equipmentId }: EquipmentViewerProps) {
                         setWorkOrderModalOpen(true);
                       }}
                     >
-                      Create First Work Order
+                      Create First Task
                     </button>
                   </div>
                 ) : (

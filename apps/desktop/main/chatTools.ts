@@ -1,6 +1,6 @@
 /**
- * Chat Tools - OpenAI Function Calling for Equipment & Logs Management
- * Enables natural language interaction with the equipment database
+ * Chat Tools - OpenAI Function Calling for Cases & Activity Logs Management
+ * Enables natural language interaction with the case database
  */
 import OpenAI from 'openai';
 import {
@@ -14,7 +14,7 @@ import {
   calculateEquipmentAnalytics,
   Equipment,
   MaintenanceLog,
-  // Work Order imports
+  // Task imports (Work Orders)
   getAllWorkOrders,
   getWorkOrder,
   createWorkOrder,
@@ -31,14 +31,14 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_equipment_list',
-      description: 'Get a list of all equipment/assets in the system. Use this to see what equipment is available before taking actions.',
+      description: 'Get a list of all cases/matters in the system. Use this to see what cases are available before taking actions.',
       parameters: {
         type: 'object',
         properties: {
           status_filter: {
             type: 'string',
             enum: ['all', 'operational', 'maintenance', 'down', 'retired'],
-            description: 'Optional filter by equipment status. Default is "all".',
+            description: 'Optional filter by case status (operational=active, maintenance=in review, down=on hold, retired=closed). Default is "all".',
           },
         },
         required: [],
@@ -49,13 +49,13 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'find_equipment_by_name',
-      description: 'Search for equipment by name, make, or model using fuzzy matching. Use this when the user refers to equipment by a partial or informal name.',
+      description: 'Search for cases by name, case type, or court using fuzzy matching. Use this when the user refers to a case by a partial or informal name.',
       parameters: {
         type: 'object',
         properties: {
           search_term: {
             type: 'string',
-            description: 'The name, make, model, or partial identifier to search for.',
+            description: 'The case name, type, court, or partial identifier to search for.',
           },
         },
         required: ['search_term'],
@@ -66,13 +66,13 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_equipment_details',
-      description: 'Get detailed information about a specific piece of equipment including its status, location, and recent maintenance.',
+      description: 'Get detailed information about a specific case/matter including its status, jurisdiction, and recent activity.',
       parameters: {
         type: 'object',
         properties: {
           equipment_id: {
             type: 'string',
-            description: 'The unique ID of the equipment.',
+            description: 'The unique ID of the case.',
           },
         },
         required: ['equipment_id'],
@@ -83,42 +83,42 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'create_maintenance_log',
-      description: 'Create a new maintenance log entry for a piece of equipment. Use this when the user wants to record maintenance activity.',
+      description: 'Create a new activity log entry for a case. Use this when the user wants to record case activity such as research, filings, hearings, or reviews.',
       parameters: {
         type: 'object',
         properties: {
           equipment_id: {
             type: 'string',
-            description: 'The ID of the equipment this log is for.',
+            description: 'The ID of the case this log is for.',
           },
           type: {
             type: 'string',
             enum: ['preventive', 'corrective', 'emergency', 'inspection'],
-            description: 'The type of maintenance performed.',
+            description: 'The type of activity (preventive=research, corrective=filing, emergency=hearing, inspection=review).',
           },
           notes: {
             type: 'string',
-            description: 'Description of the maintenance work, observations, or notes.',
+            description: 'Description of the work done, observations, or notes.',
           },
           technician: {
             type: 'string',
-            description: 'Name of the technician who performed the work (optional).',
+            description: 'Name of the attorney/paralegal who performed the work (optional).',
           },
           duration_minutes: {
             type: 'number',
-            description: 'Duration of the maintenance in minutes (optional).',
+            description: 'Duration of the work in minutes / billable time (optional).',
           },
           parts_used: {
             type: 'string',
-            description: 'Comma-separated list of parts used (optional).',
+            description: 'Comma-separated list of documents referenced (optional).',
           },
           started_at: {
             type: 'string',
-            description: 'ISO timestamp when maintenance started. Defaults to now if not provided.',
+            description: 'ISO timestamp when work started. Defaults to now if not provided.',
           },
           completed_at: {
             type: 'string',
-            description: 'ISO timestamp when maintenance was completed (optional).',
+            description: 'ISO timestamp when work was completed (optional).',
           },
         },
         required: ['equipment_id', 'type', 'notes'],
@@ -129,18 +129,18 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'update_equipment_status',
-      description: 'Update the status of a piece of equipment. IMPORTANT: This requires user confirmation before executing.',
+      description: 'Update the status of a case. IMPORTANT: This requires user confirmation before executing.',
       parameters: {
         type: 'object',
         properties: {
           equipment_id: {
             type: 'string',
-            description: 'The ID of the equipment to update.',
+            description: 'The ID of the case to update.',
           },
           new_status: {
             type: 'string',
             enum: ['operational', 'maintenance', 'down', 'retired'],
-            description: 'The new status for the equipment.',
+            description: 'The new status for the case (operational=active, maintenance=in review, down=on hold, retired=closed).',
           },
           reason: {
             type: 'string',
@@ -159,13 +159,13 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_equipment_analytics',
-      description: 'Get analytics and metrics for equipment including MTBF (Mean Time Between Failures), MTTR (Mean Time To Repair), and availability percentage.',
+      description: 'Get analytics and metrics for cases including total billable hours, average resolution time, and caseload statistics.',
       parameters: {
         type: 'object',
         properties: {
           equipment_id: {
             type: 'string',
-            description: 'The ID of the equipment. If not provided, returns analytics for all equipment.',
+            description: 'The ID of the case. If not provided, returns analytics for all cases.',
           },
         },
         required: [],
@@ -176,13 +176,13 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_maintenance_logs',
-      description: 'Get maintenance logs, optionally filtered by equipment.',
+      description: 'Get activity logs, optionally filtered by case.',
       parameters: {
         type: 'object',
         properties: {
           equipment_id: {
             type: 'string',
-            description: 'Optional equipment ID to filter logs. If not provided, returns all logs.',
+            description: 'Optional case ID to filter logs. If not provided, returns all logs.',
           },
           limit: {
             type: 'number',
@@ -197,39 +197,39 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'record_failure_event',
-      description: 'Record a failure event for equipment. This is used for MTBF calculations.',
+      description: 'Record a deadline miss or issue event for a case. This is used for tracking and analytics.',
       parameters: {
         type: 'object',
         properties: {
           equipment_id: {
             type: 'string',
-            description: 'The ID of the equipment that failed.',
+            description: 'The ID of the case with the issue.',
           },
           root_cause: {
             type: 'string',
-            description: 'Description of what caused the failure.',
+            description: 'Description of what caused the issue.',
           },
           occurred_at: {
             type: 'string',
-            description: 'ISO timestamp when the failure occurred. Defaults to now.',
+            description: 'ISO timestamp when the issue occurred. Defaults to now.',
           },
         },
         required: ['equipment_id'],
       },
     },
   },
-  // ============ Work Order Tools ============
+  // ============ Task Tools ============
   {
     type: 'function',
     function: {
       name: 'get_work_orders',
-      description: 'Get a list of work orders, optionally filtered by status or equipment.',
+      description: 'Get a list of tasks/assignments, optionally filtered by status or case.',
       parameters: {
         type: 'object',
         properties: {
           equipment_id: {
             type: 'string',
-            description: 'Optional equipment ID to filter work orders.',
+            description: 'Optional case ID to filter tasks.',
           },
           status: {
             type: 'string',
@@ -245,13 +245,13 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'create_work_order',
-      description: 'Create a new work order for a piece of equipment. Use this when the user wants to schedule or plan maintenance work.',
+      description: 'Create a new task/assignment for a case. Use this when the user wants to schedule or plan work on a case.',
       parameters: {
         type: 'object',
         properties: {
           equipment_id: {
             type: 'string',
-            description: 'The ID of the equipment this work order is for.',
+            description: 'The ID of the case this task is for.',
           },
           title: {
             type: 'string',
@@ -260,7 +260,7 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
           type: {
             type: 'string',
             enum: ['preventive', 'corrective', 'emergency', 'inspection'],
-            description: 'The type of maintenance work.',
+            description: 'The type of legal work (preventive=research, corrective=filing, emergency=hearing, inspection=review).',
           },
           priority: {
             type: 'string',
@@ -281,7 +281,7 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
           },
           technician: {
             type: 'string',
-            description: 'Name of the assigned technician. Optional.',
+            description: 'Name of the assigned attorney/paralegal. Optional.',
           },
         },
         required: ['equipment_id', 'title', 'type'],
@@ -292,17 +292,17 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'complete_work_order',
-      description: 'Mark a work order as completed. This will also create a maintenance log entry.',
+      description: 'Mark a task as completed. This will also create an activity log entry.',
       parameters: {
         type: 'object',
         properties: {
           work_order_id: {
             type: 'string',
-            description: 'The ID of the work order to complete.',
+            description: 'The ID of the task to complete.',
           },
           actual_hours: {
             type: 'number',
-            description: 'Actual hours spent on the work.',
+            description: 'Actual hours spent on the work (billable time).',
           },
           notes: {
             type: 'string',
@@ -317,18 +317,18 @@ export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'update_work_order_status',
-      description: 'Update the status of a work order (e.g., start work, put on hold, cancel).',
+      description: 'Update the status of a task (e.g., start work, put on hold, cancel).',
       parameters: {
         type: 'object',
         properties: {
           work_order_id: {
             type: 'string',
-            description: 'The ID of the work order to update.',
+            description: 'The ID of the task to update.',
           },
           new_status: {
             type: 'string',
             enum: ['open', 'in_progress', 'on_hold', 'cancelled'],
-            description: 'The new status for the work order.',
+            description: 'The new status for the task.',
           },
         },
         required: ['work_order_id', 'new_status'],
@@ -379,7 +379,7 @@ function similarityScore(a: string, b: string): number {
 }
 
 /**
- * Find equipment by fuzzy name matching
+ * Find cases by fuzzy name matching
  */
 function findEquipmentByName(searchTerm: string): { equipment: Equipment; score: number }[] {
   const allEquipment = getAllEquipment();
@@ -511,16 +511,16 @@ function executeGetEquipmentList(statusFilter?: string): ToolResult {
   const summary = filtered.map(eq => ({
     id: eq.id,
     name: eq.name,
-    make: eq.make,
-    model: eq.model,
+    caseType: eq.make,
+    court: eq.model,
     status: eq.status,
-    location: eq.location,
+    jurisdiction: eq.location,
   }));
 
   return {
     success: true,
     data: summary,
-    message: `Found ${filtered.length} equipment items${statusFilter && statusFilter !== 'all' ? ` with status "${statusFilter}"` : ''}.`,
+    message: `Found ${filtered.length} cases${statusFilter && statusFilter !== 'all' ? ` with status "${statusFilter}"` : ''}.`,
   };
 }
 
@@ -531,15 +531,15 @@ function executeFindEquipmentByName(searchTerm: string): ToolResult {
     return {
       success: true,
       data: [],
-      message: `No equipment found matching "${searchTerm}".`,
+      message: `No cases found matching "${searchTerm}".`,
     };
   }
 
   const matches = results.slice(0, 5).map(r => ({
     id: r.equipment.id,
     name: r.equipment.name,
-    make: r.equipment.make,
-    model: r.equipment.model,
+    caseType: r.equipment.make,
+    court: r.equipment.model,
     status: r.equipment.status,
     confidence: Math.round(r.score * 100),
   }));
@@ -547,7 +547,7 @@ function executeFindEquipmentByName(searchTerm: string): ToolResult {
   return {
     success: true,
     data: matches,
-    message: `Found ${results.length} equipment matching "${searchTerm}". Top match: ${results[0].equipment.make} ${results[0].equipment.model} (${Math.round(results[0].score * 100)}% confidence).`,
+    message: `Found ${results.length} cases matching "${searchTerm}". Top match: ${results[0].equipment.name} (${Math.round(results[0].score * 100)}% confidence).`,
   };
 }
 
@@ -555,10 +555,10 @@ function executeGetEquipmentDetails(equipmentId: string): ToolResult {
   const equipment = getEquipment(equipmentId);
 
   if (!equipment) {
-    return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+    return { success: false, error: `Case with ID "${equipmentId}" not found.` };
   }
 
-  // Get recent maintenance logs
+  // Get recent activity logs
   const logs = getMaintenanceLogsForEquipment(equipmentId).slice(0, 5);
 
   // Get analytics
@@ -567,23 +567,23 @@ function executeGetEquipmentDetails(equipmentId: string): ToolResult {
   return {
     success: true,
     data: {
-      equipment,
-      recentLogs: logs.map(log => ({
+      case: equipment,
+      recentActivity: logs.map(log => ({
         id: log.id,
         type: log.type,
         date: log.startedAt,
         notes: log.notes,
-        technician: log.technician,
+        attorney: log.technician,
       })),
       analytics: {
-        mtbf: analytics.mtbf,
-        mttr: analytics.mttr,
-        availability: analytics.availability,
-        totalFailures: analytics.totalFailures,
-        lastMaintenance: analytics.lastMaintenanceDate,
+        totalHours: analytics.mtbf,
+        avgResolutionTime: analytics.mttr,
+        progressRate: analytics.availability,
+        totalIssues: analytics.totalFailures,
+        lastActivity: analytics.lastMaintenanceDate,
       },
     },
-    message: `${equipment.make} ${equipment.model} is currently ${equipment.status}. ${logs.length > 0 ? `Last maintenance: ${logs[0].type} on ${new Date(logs[0].startedAt).toLocaleDateString()}.` : 'No maintenance history.'}`,
+    message: `${equipment.name} is currently ${equipment.status}. ${logs.length > 0 ? `Last activity: ${logs[0].type} on ${new Date(logs[0].startedAt).toLocaleDateString()}.` : 'No activity history.'}`,
   };
 }
 
@@ -592,7 +592,7 @@ function executeCreateMaintenanceLog(args: Record<string, unknown>): ToolResult 
   const equipment = getEquipment(equipmentId);
 
   if (!equipment) {
-    return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+    return { success: false, error: `Case with ID "${equipmentId}" not found.` };
   }
 
   const logData = {
@@ -611,7 +611,7 @@ function executeCreateMaintenanceLog(args: Record<string, unknown>): ToolResult 
   return {
     success: true,
     data: log,
-    message: `✅ Created ${logData.type} maintenance log for ${equipment.make} ${equipment.model}. Log ID: ${log.id}`,
+    message: `✅ Created ${logData.type} activity log for ${equipment.name}. Log ID: ${log.id}`,
     actionTaken: 'maintenance_log_created',
   };
 }
@@ -625,7 +625,7 @@ function executeUpdateEquipmentStatus(args: Record<string, unknown>): ToolResult
   const equipment = getEquipment(equipmentId);
 
   if (!equipment) {
-    return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+    return { success: false, error: `Case with ID "${equipmentId}" not found.` };
   }
 
   // If not confirmed, ask for confirmation
@@ -633,7 +633,7 @@ function executeUpdateEquipmentStatus(args: Record<string, unknown>): ToolResult
     return {
       success: false,
       requiresConfirmation: true,
-      message: `⚠️ Please confirm: Change ${equipment.make} ${equipment.model} status from "${equipment.status}" to "${newStatus}"${reason ? ` (Reason: ${reason})` : ''}? Reply with "yes" or "confirm" to proceed.`,
+      message: `⚠️ Please confirm: Change ${equipment.name} status from "${equipment.status}" to "${newStatus}"${reason ? ` (Reason: ${reason})` : ''}? Reply with "yes" or "confirm" to proceed.`,
       data: {
         pendingAction: 'update_equipment_status',
         equipment_id: equipmentId,
@@ -648,13 +648,13 @@ function executeUpdateEquipmentStatus(args: Record<string, unknown>): ToolResult
   const updated = updateEquipment(equipmentId, { status: newStatus });
 
   if (!updated) {
-    return { success: false, error: 'Failed to update equipment status.' };
+    return { success: false, error: 'Failed to update case status.' };
   }
 
   return {
     success: true,
     data: updated,
-    message: `✅ Updated ${equipment.make} ${equipment.model} status from "${equipment.status}" to "${newStatus}".`,
+    message: `✅ Updated ${equipment.name} status from "${equipment.status}" to "${newStatus}".`,
     actionTaken: 'equipment_status_updated',
   };
 }
@@ -663,7 +663,7 @@ function executeGetEquipmentAnalytics(equipmentId?: string): ToolResult {
   if (equipmentId) {
     const equipment = getEquipment(equipmentId);
     if (!equipment) {
-      return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+      return { success: false, error: `Case with ID "${equipmentId}" not found.` };
     }
 
     const analytics = calculateEquipmentAnalytics(equipmentId);
@@ -671,21 +671,21 @@ function executeGetEquipmentAnalytics(equipmentId?: string): ToolResult {
     return {
       success: true,
       data: analytics,
-      message: `Analytics for ${equipment.make} ${equipment.model}: MTBF: ${analytics.mtbf ? `${analytics.mtbf.toFixed(1)} hours` : 'N/A'}, MTTR: ${analytics.mttr ? `${analytics.mttr.toFixed(1)} hours` : 'N/A'}, Availability: ${analytics.availability ? `${analytics.availability.toFixed(1)}%` : 'N/A'}.`,
+      message: `Analytics for ${equipment.name}: Total Hours: ${analytics.mtbf ? `${analytics.mtbf.toFixed(1)} hours` : 'N/A'}, Avg Resolution: ${analytics.mttr ? `${analytics.mttr.toFixed(1)} hours` : 'N/A'}, Progress: ${analytics.availability ? `${analytics.availability.toFixed(1)}%` : 'N/A'}.`,
     };
   }
 
-  // Get analytics for all equipment
+  // Get analytics for all cases
   const allEquipment = getAllEquipment();
   const allAnalytics = allEquipment.map(eq => ({
-    equipment: { id: eq.id, name: eq.name, make: eq.make, model: eq.model },
+    case: { id: eq.id, name: eq.name, caseType: eq.make, court: eq.model },
     analytics: calculateEquipmentAnalytics(eq.id),
   }));
 
   return {
     success: true,
     data: allAnalytics,
-    message: `Retrieved analytics for ${allEquipment.length} equipment items.`,
+    message: `Retrieved analytics for ${allEquipment.length} cases.`,
   };
 }
 
@@ -699,13 +699,13 @@ function executeGetMaintenanceLogs(args: Record<string, unknown>): ToolResult {
   if (equipmentId) {
     const equipment = getEquipment(equipmentId);
     if (!equipment) {
-      return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+      return { success: false, error: `Case with ID "${equipmentId}" not found.` };
     }
     logs = getMaintenanceLogsForEquipment(equipmentId).slice(0, limit);
-    contextMessage = `for ${equipment.make} ${equipment.model}`;
+    contextMessage = `for ${equipment.name}`;
   } else {
     logs = getAllMaintenanceLogs().slice(0, limit);
-    contextMessage = 'across all equipment';
+    contextMessage = 'across all cases';
   }
 
   const summary = logs.map(log => ({
@@ -714,14 +714,14 @@ function executeGetMaintenanceLogs(args: Record<string, unknown>): ToolResult {
     type: log.type,
     date: log.startedAt,
     notes: log.notes,
-    technician: log.technician,
+    attorney: log.technician,
     duration: log.durationMinutes,
   }));
 
   return {
     success: true,
     data: summary,
-    message: `Found ${logs.length} maintenance logs ${contextMessage}.`,
+    message: `Found ${logs.length} activity logs ${contextMessage}.`,
   };
 }
 
@@ -730,7 +730,7 @@ function executeRecordFailureEvent(args: Record<string, unknown>): ToolResult {
   const equipment = getEquipment(equipmentId);
 
   if (!equipment) {
-    return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+    return { success: false, error: `Case with ID "${equipmentId}" not found.` };
   }
 
   const failureData = {
@@ -746,12 +746,12 @@ function executeRecordFailureEvent(args: Record<string, unknown>): ToolResult {
   return {
     success: true,
     data: event,
-    message: `⚠️ Recorded failure event for ${equipment.make} ${equipment.model}. This will be used for MTBF calculations.`,
+    message: `⚠️ Recorded issue event for ${equipment.name}. This will be tracked for analytics.`,
     actionTaken: 'failure_event_recorded',
   };
 }
 
-// ============ Work Order Tool Implementations ============
+// ============ Task Tool Implementations ============
 
 function executeGetWorkOrders(args: Record<string, unknown>): ToolResult {
   const equipmentId = args.equipment_id as string | undefined;
@@ -763,13 +763,13 @@ function executeGetWorkOrders(args: Record<string, unknown>): ToolResult {
   if (equipmentId) {
     const equipment = getEquipment(equipmentId);
     if (!equipment) {
-      return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+      return { success: false, error: `Case with ID "${equipmentId}" not found.` };
     }
     workOrders = getWorkOrdersForEquipment(equipmentId);
-    contextMessage = `for ${equipment.make} ${equipment.model}`;
+    contextMessage = `for ${equipment.name}`;
   } else {
     workOrders = getAllWorkOrders();
-    contextMessage = 'across all equipment';
+    contextMessage = 'across all cases';
   }
 
   // Filter by status if provided
@@ -779,13 +779,13 @@ function executeGetWorkOrders(args: Record<string, unknown>): ToolResult {
 
   const summary = workOrders.map(wo => ({
     id: wo.id,
-    workOrderNumber: wo.workOrderNumber,
+    taskNumber: wo.workOrderNumber,
     title: wo.title,
     type: wo.type,
     priority: wo.priority,
     status: wo.status,
     scheduledStart: wo.scheduledStart,
-    equipmentId: wo.equipmentId,
+    caseId: wo.equipmentId,
   }));
 
   // Count by status
@@ -798,7 +798,7 @@ function executeGetWorkOrders(args: Record<string, unknown>): ToolResult {
   return {
     success: true,
     data: summary,
-    message: `Found ${workOrders.length} work orders ${contextMessage}. Active: ${statusCounts.open} open, ${statusCounts.in_progress} in progress, ${statusCounts.on_hold} on hold.`,
+    message: `Found ${workOrders.length} tasks ${contextMessage}. Active: ${statusCounts.open} open, ${statusCounts.in_progress} in progress, ${statusCounts.on_hold} on hold.`,
   };
 }
 
@@ -807,7 +807,7 @@ function executeCreateWorkOrder(args: Record<string, unknown>): ToolResult {
   const equipment = getEquipment(equipmentId);
 
   if (!equipment) {
-    return { success: false, error: `Equipment with ID "${equipmentId}" not found.` };
+    return { success: false, error: `Case with ID "${equipmentId}" not found.` };
   }
 
   const workOrderData = {
@@ -834,7 +834,7 @@ function executeCreateWorkOrder(args: Record<string, unknown>): ToolResult {
   return {
     success: true,
     data: workOrder,
-    message: `✅ Created work order ${workOrder.workOrderNumber} for ${equipment.make} ${equipment.model}: "${workOrderData.title}" (${workOrderData.type}, ${workOrderData.priority} priority)`,
+    message: `✅ Created task ${workOrder.workOrderNumber} for ${equipment.name}: "${workOrderData.title}" (${workOrderData.type}, ${workOrderData.priority} priority)`,
     actionTaken: 'work_order_created',
   };
 }
@@ -844,7 +844,7 @@ function executeCompleteWorkOrder(args: Record<string, unknown>): ToolResult {
   const workOrder = getWorkOrder(workOrderId);
 
   if (!workOrder) {
-    return { success: false, error: `Work order with ID "${workOrderId}" not found.` };
+    return { success: false, error: `Task with ID "${workOrderId}" not found.` };
   }
 
   const equipment = getEquipment(workOrder.equipmentId);
@@ -854,13 +854,13 @@ function executeCompleteWorkOrder(args: Record<string, unknown>): ToolResult {
   const result = completeWorkOrder(workOrderId, actualHours, notes, true);
 
   if (!result) {
-    return { success: false, error: 'Failed to complete work order.' };
+    return { success: false, error: 'Failed to complete task.' };
   }
 
   return {
     success: true,
     data: result,
-    message: `✅ Completed work order ${workOrder.workOrderNumber} for ${equipment?.make} ${equipment?.model}. Actual hours: ${actualHours}. Maintenance log created.`,
+    message: `✅ Completed task ${workOrder.workOrderNumber} for ${equipment?.name}. Billable hours: ${actualHours}. Activity log created.`,
     actionTaken: 'work_order_completed',
   };
 }
@@ -872,7 +872,7 @@ function executeUpdateWorkOrderStatus(args: Record<string, unknown>): ToolResult
   const workOrder = getWorkOrder(workOrderId);
 
   if (!workOrder) {
-    return { success: false, error: `Work order with ID "${workOrderId}" not found.` };
+    return { success: false, error: `Task with ID "${workOrderId}" not found.` };
   }
 
   const equipment = getEquipment(workOrder.equipmentId);
@@ -904,7 +904,7 @@ function executeUpdateWorkOrderStatus(args: Record<string, unknown>): ToolResult
   const updated = updateWorkOrder(workOrderId, updates as Partial<WorkOrder>);
 
   if (!updated) {
-    return { success: false, error: 'Failed to update work order.' };
+    return { success: false, error: 'Failed to update task.' };
   }
 
   const statusLabels: Record<string, string> = {
@@ -917,7 +917,7 @@ function executeUpdateWorkOrderStatus(args: Record<string, unknown>): ToolResult
   return {
     success: true,
     data: updated,
-    message: `✅ Work order ${workOrder.workOrderNumber} for ${equipment?.make} ${equipment?.model} has been ${statusLabels[newStatus] || newStatus}.`,
+    message: `✅ Task ${workOrder.workOrderNumber} for ${equipment?.name} has been ${statusLabels[newStatus] || newStatus}.`,
     actionTaken: 'work_order_updated',
   };
 }
@@ -925,38 +925,38 @@ function executeUpdateWorkOrderStatus(args: Record<string, unknown>): ToolResult
 // ============ Context Builder ============
 
 /**
- * Build equipment context for the system prompt
+ * Build case context for the system prompt
  */
-export function buildEquipmentContext(): string {
-  const equipment = getAllEquipment();
+export function buildCaseContext(): string {
+  const cases = getAllEquipment();
 
-  if (equipment.length === 0) {
-    return 'No equipment has been registered in the system yet.';
+  if (cases.length === 0) {
+    return 'No cases have been registered in the system yet.';
   }
 
-  const equipmentList = equipment.map(eq =>
-    `- ${eq.make} ${eq.model}${eq.name !== `${eq.make} ${eq.model}` ? ` (${eq.name})` : ''} [ID: ${eq.id}] - Status: ${eq.status}${eq.location ? `, Location: ${eq.location}` : ''}`
+  const caseList = cases.map(c =>
+    `- ${c.name} (${c.make} - ${c.model}) [ID: ${c.id}] - Status: ${c.status}${c.location ? `, Jurisdiction: ${c.location}` : ''}`
   ).join('\n');
 
-  // Get recent logs across all equipment
+  // Get recent activity across all cases
   const recentLogs = getAllMaintenanceLogs().slice(0, 5);
   const recentLogsText = recentLogs.length > 0
-    ? '\n\nRecent maintenance activity:\n' + recentLogs.map(log => {
-        const eq = getEquipment(log.equipmentId);
-        return `- ${new Date(log.startedAt).toLocaleDateString()}: ${log.type} on ${eq?.make} ${eq?.model} - ${log.notes || 'No notes'}`;
+    ? '\n\nRecent case activity:\n' + recentLogs.map(log => {
+        const c = getEquipment(log.equipmentId);
+        return `- ${new Date(log.startedAt).toLocaleDateString()}: ${log.type} on ${c?.name} - ${log.notes || 'No notes'}`;
       }).join('\n')
     : '';
 
-  // Get active work orders
-  const activeWorkOrders = getAllWorkOrders().filter(wo => 
+  // Get active tasks
+  const activeTasks = getAllWorkOrders().filter(wo => 
     wo.status === 'open' || wo.status === 'in_progress' || wo.status === 'on_hold'
   );
-  const workOrdersText = activeWorkOrders.length > 0
-    ? '\n\nActive Work Orders:\n' + activeWorkOrders.slice(0, 5).map(wo => {
-        const eq = getEquipment(wo.equipmentId);
-        return `- ${wo.workOrderNumber}: ${wo.title} (${eq?.make} ${eq?.model}) - ${wo.status.replace('_', ' ')}, ${wo.priority} priority`;
+  const tasksText = activeTasks.length > 0
+    ? '\n\nActive Tasks:\n' + activeTasks.slice(0, 5).map(wo => {
+        const c = getEquipment(wo.equipmentId);
+        return `- ${wo.workOrderNumber}: ${wo.title} (${c?.name}) - ${wo.status.replace('_', ' ')}, ${wo.priority} priority`;
       }).join('\n')
     : '';
 
-  return `Registered Equipment (${equipment.length} items):\n${equipmentList}${recentLogsText}${workOrdersText}`;
+  return `Registered Cases (${cases.length} items):\n${caseList}${recentLogsText}${tasksText}`;
 }

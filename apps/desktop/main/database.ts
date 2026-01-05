@@ -68,7 +68,7 @@ export function getDatabase(): Database.Database {
 
   try {
     const userDataPath = app.getPath('userData');
-    const dbPath = path.join(userDataPath, 'drasill-cloud.db');
+    const dbPath = path.join(userDataPath, 'drasill-legal.db');
 
     // Ensure directory exists
     if (!fs.existsSync(userDataPath)) {
@@ -643,7 +643,7 @@ export function calculateEquipmentAnalytics(equipmentId: string): EquipmentAnaly
 }
 
 /**
- * Generate sample failure events and maintenance logs for testing analytics
+ * Generate sample case issues and activity logs for testing analytics
  */
 export function generateSampleAnalyticsData(equipmentId: string): { 
   failuresCreated: number; 
@@ -651,13 +651,13 @@ export function generateSampleAnalyticsData(equipmentId: string): {
 } {
   const now = new Date();
   
-  // Generate 5 failure events over the past 6 months
+  // Generate 5 case issues over the past 6 months
   const failureData = [
-    { daysAgo: 180, rootCause: 'Motor overheating - cooling fan failure', resolvedHoursLater: 4 },
-    { daysAgo: 120, rootCause: 'Hydraulic leak in main cylinder', resolvedHoursLater: 8 },
-    { daysAgo: 75, rootCause: 'Electrical short in control panel', resolvedHoursLater: 2 },
-    { daysAgo: 30, rootCause: 'Belt slippage causing power loss', resolvedHoursLater: 1 },
-    { daysAgo: 7, rootCause: 'Sensor malfunction - replaced proximity sensor', resolvedHoursLater: 3 },
+    { daysAgo: 180, rootCause: 'Motion deadline missed - court extension granted', resolvedHoursLater: 4 },
+    { daysAgo: 120, rootCause: 'Discovery response delay - opposing counsel objection resolved', resolvedHoursLater: 8 },
+    { daysAgo: 75, rootCause: 'Filing error - amended complaint submitted', resolvedHoursLater: 2 },
+    { daysAgo: 30, rootCause: 'Document production incomplete - supplemental response filed', resolvedHoursLater: 1 },
+    { daysAgo: 7, rootCause: 'Court scheduling conflict - hearing rescheduled', resolvedHoursLater: 3 },
   ];
 
   for (const failure of failureData) {
@@ -673,16 +673,16 @@ export function generateSampleAnalyticsData(equipmentId: string): {
     });
   }
 
-  // Generate 8 maintenance logs over the past 6 months
+  // Generate 8 activity logs over the past 6 months
   const logData = [
-    { daysAgo: 175, type: 'corrective' as const, notes: 'Replaced cooling fan motor', duration: 120, technician: 'John Smith' },
-    { daysAgo: 150, type: 'preventive' as const, notes: 'Quarterly lubrication and belt inspection', duration: 45, technician: 'Mike Johnson' },
-    { daysAgo: 115, type: 'corrective' as const, notes: 'Repaired hydraulic cylinder seal', duration: 240, technician: 'John Smith' },
-    { daysAgo: 90, type: 'inspection' as const, notes: 'Annual safety inspection - passed', duration: 60, technician: 'Sarah Williams' },
-    { daysAgo: 70, type: 'emergency' as const, notes: 'Emergency repair of control panel wiring', duration: 90, technician: 'Mike Johnson' },
-    { daysAgo: 45, type: 'preventive' as const, notes: 'Oil change and filter replacement', duration: 30, technician: 'John Smith' },
-    { daysAgo: 25, type: 'corrective' as const, notes: 'Belt replacement and tensioner adjustment', duration: 60, technician: 'Mike Johnson' },
-    { daysAgo: 5, type: 'corrective' as const, notes: 'Sensor replacement and calibration', duration: 45, technician: 'Sarah Williams' },
+    { daysAgo: 175, type: 'corrective' as const, notes: 'Motion to dismiss response drafted and filed', duration: 120, technician: 'Jane Morrison, Esq.' },
+    { daysAgo: 150, type: 'preventive' as const, notes: 'Quarterly case status review and deadline audit', duration: 45, technician: 'Robert Chen, Esq.' },
+    { daysAgo: 115, type: 'corrective' as const, notes: 'Discovery objections prepared and served', duration: 240, technician: 'Jane Morrison, Esq.' },
+    { daysAgo: 90, type: 'inspection' as const, notes: 'Annual compliance review - all filings current', duration: 60, technician: 'Maria Santos, Paralegal' },
+    { daysAgo: 70, type: 'emergency' as const, notes: 'Emergency TRO motion prepared and filed', duration: 90, technician: 'Robert Chen, Esq.' },
+    { daysAgo: 45, type: 'preventive' as const, notes: 'Document organization and indexing update', duration: 30, technician: 'Jane Morrison, Esq.' },
+    { daysAgo: 25, type: 'corrective' as const, notes: 'Amended pleading drafted per court order', duration: 60, technician: 'Robert Chen, Esq.' },
+    { daysAgo: 5, type: 'corrective' as const, notes: 'Settlement agreement revisions completed', duration: 45, technician: 'Maria Santos, Paralegal' },
   ];
 
   for (const log of logData) {

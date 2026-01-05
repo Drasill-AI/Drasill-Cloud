@@ -4,8 +4,9 @@ import { TreeItem } from './TreeItem';
 import styles from './FileExplorer.module.css';
 
 export function FileExplorer() {
-  const { workspacePath, tree, openWorkspace, refreshTree, showToast } = useAppStore();
+  const { workspacePath, workspacePaths, tree, openWorkspace, addWorkspaceFolder, refreshTree, showToast } = useAppStore();
   const [isAdding, setIsAdding] = useState(false);
+  const [isAddingFolder, setIsAddingFolder] = useState(false);
 
   const handleAddFiles = async () => {
     if (!workspacePath || isAdding) return;
@@ -25,6 +26,17 @@ export function FileExplorer() {
       showToast('error', `Failed to add files: ${error}`);
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleAddFolder = async () => {
+    if (isAddingFolder) return;
+    
+    setIsAddingFolder(true);
+    try {
+      await addWorkspaceFolder();
+    } finally {
+      setIsAddingFolder(false);
     }
   };
 
@@ -67,6 +79,19 @@ export function FileExplorer() {
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             {isAdding ? 'Adding...' : 'Add Files'}
+          </button>
+          <button 
+            className={styles.addButton} 
+            onClick={handleAddFolder}
+            disabled={isAddingFolder}
+            title="Add another folder to workspace"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              <line x1="12" y1="11" x2="12" y2="17" />
+              <line x1="9" y1="14" x2="15" y2="14" />
+            </svg>
+            {isAddingFolder ? 'Adding...' : 'Add Folder'}
           </button>
         </div>
       )}

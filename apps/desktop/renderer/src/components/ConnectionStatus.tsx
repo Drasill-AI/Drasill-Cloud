@@ -19,21 +19,13 @@ export function ConnectionStatus({ inline = false }: ConnectionStatusProps) {
   // Check actual connectivity
   const checkConnection = useCallback(async () => {
     try {
-      // Try to reach a reliable endpoint
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      
-      const response = await fetch('https://api.openai.com', {
-        method: 'HEAD',
-        mode: 'no-cors',
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeout);
-      setIsOnline(true);
+      // Use navigator.onLine as the primary check
+      // Attempting to fetch external URLs from Electron renderer can cause issues
+      const online = navigator.onLine;
+      setIsOnline(online);
       setLastChecked(new Date());
     } catch {
-      // If fetch fails, check navigator.onLine
+      // Fallback to navigator.onLine
       setIsOnline(navigator.onLine);
       setLastChecked(new Date());
     }

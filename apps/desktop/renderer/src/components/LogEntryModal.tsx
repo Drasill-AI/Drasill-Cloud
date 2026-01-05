@@ -99,16 +99,16 @@ export function LogEntryModal() {
 
       if (isEditMode && editingLog?.id) {
         await window.electronAPI.updateMaintenanceLog(editingLog.id, logData);
-        showToast('success', 'Maintenance log updated successfully');
+        showToast('success', 'Activity log updated successfully');
       } else {
         await window.electronAPI.addMaintenanceLog(logData);
-        showToast('success', 'Maintenance log added successfully');
+        showToast('success', 'Activity log added successfully');
       }
 
       handleClose();
       refreshLogs();
     } catch (error) {
-      showToast('error', isEditMode ? 'Failed to update maintenance log' : 'Failed to add maintenance log');
+      showToast('error', isEditMode ? 'Failed to update activity log' : 'Failed to add activity log');
     } finally {
       setIsSubmitting(false);
     }
@@ -123,11 +123,11 @@ export function LogEntryModal() {
     setIsDeleting(true);
     try {
       await window.electronAPI.deleteMaintenanceLog(editingLog.id);
-      showToast('success', 'Maintenance log deleted');
+      showToast('success', 'Activity log deleted');
       handleClose();
       refreshLogs();
     } catch (error) {
-      showToast('error', 'Failed to delete maintenance log');
+      showToast('error', 'Failed to delete activity log');
     } finally {
       setIsDeleting(false);
     }
@@ -146,7 +146,7 @@ export function LogEntryModal() {
               <line x1="12" y1="18" x2="12" y2="12" />
               <line x1="9" y1="15" x2="15" y2="15" />
             </svg>
-            {isEditMode ? 'Edit Maintenance Log' : 'Add Maintenance Log'}
+            {isEditMode ? 'Edit Activity Log' : 'Add Activity Log'}
           </span>
           <button className={styles.closeButton} onClick={handleClose}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -160,7 +160,7 @@ export function LogEntryModal() {
           <div className={styles.form}>
             <div className={styles.formGroup}>
               <label className={styles.label}>
-                Equipment <span className={styles.required}>*</span>
+                Case <span className={styles.required}>*</span>
               </label>
               <select
                 className={styles.select}
@@ -168,17 +168,17 @@ export function LogEntryModal() {
                 onChange={(e) => setFormData(prev => ({ ...prev, equipmentId: e.target.value }))}
                 required
               >
-                <option value="" disabled>Select equipment...</option>
+                <option value="" disabled>Select case...</option>
                 {equipment.map(eq => (
                   <option key={eq.id} value={eq.id}>
-                    {eq.make} {eq.model} {eq.serialNumber ? `(${eq.serialNumber})` : ''}
+                    {eq.name || `${eq.make} ${eq.model}`} {eq.serialNumber ? `(${eq.serialNumber})` : ''}
                   </option>
                 ))}
               </select>
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Maintenance Type</label>
+              <label className={styles.label}>Activity Type</label>
               <div className={styles.typeOptions}>
                 {LOG_TYPES.map(type => (
                   <button
@@ -195,18 +195,18 @@ export function LogEntryModal() {
 
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label className={styles.label}>Technician</label>
+                <label className={styles.label}>Attorney/Paralegal</label>
                 <input
                   type="text"
                   className={styles.input}
                   value={formData.technician}
                   onChange={(e) => setFormData(prev => ({ ...prev, technician: e.target.value }))}
-                  placeholder="Technician name"
+                  placeholder="Attorney or paralegal name"
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.label}>Duration (minutes)</label>
+                <label className={styles.label}>Billable Time (minutes)</label>
                 <input
                   type="number"
                   className={styles.input}
@@ -244,13 +244,13 @@ export function LogEntryModal() {
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Parts Used</label>
+              <label className={styles.label}>Documents Referenced</label>
               <input
                 type="text"
                 className={styles.input}
                 value={formData.partsUsed}
                 onChange={(e) => setFormData(prev => ({ ...prev, partsUsed: e.target.value }))}
-                placeholder="List parts used (comma separated)"
+                placeholder="List documents referenced (comma separated)"
               />
             </div>
 

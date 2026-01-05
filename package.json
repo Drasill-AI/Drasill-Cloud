@@ -1,8 +1,8 @@
 {
-  "name": "drasill-cloud",
+  "name": "drasill-legal",
   "version": "1.1.0",
   "private": true,
-  "description": "Equipment documentation desktop app with AI-powered schematic visualizer",
+  "description": "Legal case management desktop app with AI-powered document analysis",
   "author": "Drasill AI LLC",
   "license": "MIT",
   "workspaces": [

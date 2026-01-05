@@ -178,7 +178,7 @@ export function TemplateModal() {
           {/* Type & Priority Row */}
           <div className={styles.row}>
             <div className={styles.formGroup}>
-              <label>Work Order Type</label>
+              <label>Task Type</label>
               <div className={styles.optionButtons}>
                 {(['preventive', 'corrective', 'inspection', 'emergency'] as WorkOrderType[]).map(type => (
                   <button

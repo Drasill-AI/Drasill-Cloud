@@ -36,6 +36,13 @@ const api = {
   },
 
   /**
+   * Add an additional folder to the workspace
+   */
+  addWorkspaceFolder: (): Promise<string | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.ADD_WORKSPACE_FOLDER);
+  },
+
+  /**
    * Read directory contents
    */
   readDir: (path: string): Promise<DirEntry[]> => {

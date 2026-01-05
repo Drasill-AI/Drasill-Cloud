@@ -26,6 +26,7 @@ import type {
 
 interface ElectronAPI {
   selectWorkspace: () => Promise<string | null>;
+  addWorkspaceFolder: () => Promise<string | null>;
   readDir: (path: string) => Promise<DirEntry[]>;
   readFile: (path: string) => Promise<FileReadResult>;
   readFileBinary: (path: string) => Promise<{ path: string; data: string }>;

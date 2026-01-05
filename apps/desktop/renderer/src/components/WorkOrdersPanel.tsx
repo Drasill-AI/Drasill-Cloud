@@ -37,7 +37,7 @@ export function WorkOrdersPanel() {
 
   const getEquipmentName = (equipmentId: string) => {
     const eq = equipment.find(e => e.id === equipmentId);
-    return eq ? `${eq.make} ${eq.model}` : 'Unknown';
+    return eq ? (eq.name || `${eq.make} ${eq.model}`) : 'Unknown';
   };
 
   const filteredWorkOrders = workOrders.filter(wo => {
@@ -80,7 +80,7 @@ export function WorkOrdersPanel() {
               <rect x="9" y="3" width="6" height="4" rx="1" />
               <path d="M9 14l2 2 4-4" />
             </svg>
-            Work Orders
+            Tasks
           </h2>
           <span className={styles.count}>{workOrders.length} total</span>
         </div>
@@ -97,7 +97,7 @@ export function WorkOrdersPanel() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            New Work Order
+            New Task
           </button>
         </div>
       </div>
@@ -125,7 +125,7 @@ export function WorkOrdersPanel() {
           </svg>
           <input
             type="text"
-            placeholder="Search by WO#, title, or technician..."
+            placeholder="Search by task#, title, or attorney..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -147,9 +147,9 @@ export function WorkOrdersPanel() {
           value={equipmentFilter}
           onChange={(e) => setEquipmentFilter(e.target.value)}
         >
-          <option value="all">All Equipment</option>
+          <option value="all">All Cases</option>
           {equipment.map(eq => (
-            <option key={eq.id} value={eq.id}>{eq.make} {eq.model}</option>
+            <option key={eq.id} value={eq.id}>{eq.name || `${eq.make} ${eq.model}`}</option>
           ))}
         </select>
 
@@ -176,23 +176,23 @@ export function WorkOrdersPanel() {
               <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
               <rect x="9" y="3" width="6" height="4" rx="1" />
             </svg>
-            <p>No work orders found</p>
+            <p>No tasks found</p>
             <button onClick={() => setWorkOrderModalOpen(true)}>
-              Create your first work order
+              Create your first task
             </button>
           </div>
         ) : (
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>WO #</th>
+                <th>Task #</th>
                 <th>Title</th>
-                <th>Equipment</th>
+                <th>Case</th>
                 <th>Type</th>
                 <th>Priority</th>
                 <th>Status</th>
-                <th>Scheduled</th>
-                <th>Technician</th>
+                <th>Due Date</th>
+                <th>Attorney</th>
               </tr>
             </thead>
             <tbody>

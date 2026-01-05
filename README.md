@@ -1,14 +1,14 @@
-# Drasill Cloud
+# Drasill Legal
 
-A lightweight VS Code-like desktop application for equipment documentation, built with Electron, React, and TypeScript.
+A lightweight VS Code-like desktop application for legal case management and document analysis, built with Electron, React, and TypeScript.
 
 ## Features
 
 - **File Explorer**: Browse workspace folders with a tree view
 - **Monaco Editor**: View text and Markdown files with syntax highlighting
 - **Tabbed Interface**: Open multiple files in tabs with scroll position preservation
-- **PDF Placeholder**: PDF viewer coming soon
-- **Assistant Panel**: AI chat interface (stub)
+- **PDF Viewer**: View and analyze legal documents
+- **AI Assistant**: Chat interface for legal research and document analysis
 - **Command Palette**: Quick access to commands (Ctrl/Cmd+P)
 
 ## Project Structure

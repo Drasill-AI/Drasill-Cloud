@@ -72,26 +72,29 @@ import {
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit for reading files
 
-// Current workspace path for path validation
-let currentWorkspacePath: string | null = null;
+// Current workspace paths for path validation (supports multiple folders)
+let currentWorkspacePaths: string[] = [];
 
 /**
- * Validates that a file path is within the current workspace to prevent path traversal attacks.
- * @throws Error if path is outside workspace or workspace is not set
+ * Validates that a file path is within one of the current workspace folders to prevent path traversal attacks.
+ * @throws Error if path is outside all workspaces or no workspace is set
  */
 function validatePathWithinWorkspace(filePath: string): void {
-  if (!currentWorkspacePath) {
+  if (currentWorkspacePaths.length === 0) {
     throw new Error('No workspace is currently open');
   }
   
   const resolvedPath = path.resolve(filePath);
-  const resolvedWorkspace = path.resolve(currentWorkspacePath);
-  
-  // Normalize paths for comparison (handles case sensitivity on Windows)
   const normalizedPath = resolvedPath.toLowerCase();
-  const normalizedWorkspace = resolvedWorkspace.toLowerCase();
   
-  if (!normalizedPath.startsWith(normalizedWorkspace + path.sep) && normalizedPath !== normalizedWorkspace) {
+  // Check if path is within any of the workspace folders
+  const isWithinWorkspace = currentWorkspacePaths.some(workspacePath => {
+    const resolvedWorkspace = path.resolve(workspacePath);
+    const normalizedWorkspace = resolvedWorkspace.toLowerCase();
+    return normalizedPath.startsWith(normalizedWorkspace + path.sep) || normalizedPath === normalizedWorkspace;
+  });
+  
+  if (!isWithinWorkspace) {
     throw new Error('Access denied: Path is outside the workspace');
   }
 }
@@ -127,10 +130,11 @@ function validateNumberParam(value: unknown, name: string, min = 0, max = Number
 
 // State persistence store
 const stateStore = new Store<{ appState: PersistedState }>({
-  name: 'app-state',
+  name: 'drasill-legal-state',
   defaults: {
     appState: {
       workspacePath: null,
+      workspacePaths: [],
       openTabs: [],
       activeTabId: null,
     }
@@ -147,7 +151,7 @@ export function setupIpcHandlers(): void {
     setPdfExtractionReady(true);
   });
 
-  // Select workspace folder
+  // Select workspace folder (replaces all existing workspace folders)
   ipcMain.handle(IPC_CHANNELS.SELECT_WORKSPACE, async (): Promise<string | null> => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory'],
@@ -158,16 +162,42 @@ export function setupIpcHandlers(): void {
       return null;
     }
 
-    // Store workspace path for path validation
-    currentWorkspacePath = result.filePaths[0];
+    // Replace all workspace paths with the new one
+    currentWorkspacePaths = [result.filePaths[0]];
     return result.filePaths[0];
+  });
+
+  // Add folder to workspace (supports multiple folders)
+  ipcMain.handle(IPC_CHANNELS.ADD_WORKSPACE_FOLDER, async (): Promise<string | null> => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Add Folder to Workspace',
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    const newPath = result.filePaths[0];
+    
+    // Check if folder is already in workspace
+    const normalizedNew = path.resolve(newPath).toLowerCase();
+    const alreadyExists = currentWorkspacePaths.some(p => 
+      path.resolve(p).toLowerCase() === normalizedNew
+    );
+    
+    if (!alreadyExists) {
+      currentWorkspacePaths.push(newPath);
+    }
+    
+    return newPath;
   });
 
   // Read directory contents
   ipcMain.handle(IPC_CHANNELS.READ_DIR, async (_event, dirPath: string): Promise<DirEntry[]> => {
     try {
       // Validate path is within workspace (allow workspace root)
-      if (currentWorkspacePath) {
+      if (currentWorkspacePaths.length > 0) {
         validatePathWithinWorkspace(dirPath);
       }
       
@@ -445,18 +475,24 @@ export function setupIpcHandlers(): void {
   // State: Save persisted state
   ipcMain.handle(IPC_CHANNELS.STATE_SAVE, async (_event, state: PersistedState): Promise<void> => {
     stateStore.set('appState', state);
-    // Update current workspace path when state is saved
-    if (state.workspacePath) {
-      currentWorkspacePath = state.workspacePath;
+    // Update current workspace paths when state is saved
+    if (state.workspacePaths && state.workspacePaths.length > 0) {
+      currentWorkspacePaths = [...state.workspacePaths];
+    } else if (state.workspacePath) {
+      // Backward compatibility: single workspace path
+      currentWorkspacePaths = [state.workspacePath];
     }
   });
 
   // State: Load persisted state
   ipcMain.handle(IPC_CHANNELS.STATE_LOAD, async (): Promise<PersistedState> => {
     const state = stateStore.get('appState');
-    // Restore current workspace path from persisted state
-    if (state?.workspacePath) {
-      currentWorkspacePath = state.workspacePath;
+    // Restore current workspace paths from persisted state
+    if (state?.workspacePaths && state.workspacePaths.length > 0) {
+      currentWorkspacePaths = [...state.workspacePaths];
+    } else if (state?.workspacePath) {
+      // Backward compatibility: single workspace path
+      currentWorkspacePaths = [state.workspacePath];
     }
     return state;
   });

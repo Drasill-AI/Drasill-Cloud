@@ -56,7 +56,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
       }
     } catch (error) {
       console.error('Failed to load work order:', error);
-      showToast('error', 'Failed to load work order');
+      showToast('error', 'Failed to load task');
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +91,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
       }
 
       await window.electronAPI.updateWorkOrder(workOrder.id, updates);
-      showToast('success', `Work order status changed to ${STATUS_LABELS[newStatus]}`);
+      showToast('success', `Task status changed to ${STATUS_LABELS[newStatus]}`);
       refreshWorkOrders();
       loadData();
     } catch (error) {
@@ -122,7 +122,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
       );
 
       if (result) {
-        showToast('success', 'Work order completed! Maintenance log created.');
+        showToast('success', 'Task completed! Activity log created.');
         setShowCompleteModal(false);
         setCompleteData({ actualHours: '', notes: '' });
         refreshWorkOrders();
@@ -130,7 +130,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
         loadData();
       }
     } catch (error) {
-      showToast('error', 'Failed to complete work order');
+      showToast('error', 'Failed to complete task');
     } finally {
       setIsUpdating(false);
     }
@@ -153,7 +153,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
       <div className={styles.container}>
         <div className={styles.loading}>
           <div className={styles.spinner} />
-          <p>Loading work order...</p>
+          <p>Loading task...</p>
         </div>
       </div>
     );
@@ -163,8 +163,8 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h3>Work Order Not Found</h3>
-          <p>The work order with ID "{workOrderId}" could not be found.</p>
+          <h3>Task Not Found</h3>
+          <p>The task with ID "{workOrderId}" could not be found.</p>
         </div>
       </div>
     );
@@ -234,7 +234,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
           <h3 className={styles.sectionTitle}>Details</h3>
           
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Equipment</span>
+            <span className={styles.detailLabel}>Case</span>
             <span className={styles.detailValue}>
               {equipmentData ? (
                 <button 
@@ -249,7 +249,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
           </div>
 
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Technician</span>
+            <span className={styles.detailLabel}>Attorney</span>
             <span className={styles.detailValue}>{workOrder.technician || '-'}</span>
           </div>
 
@@ -268,7 +268,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
           </div>
 
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Parts Required</span>
+            <span className={styles.detailLabel}>Documents Required</span>
             <span className={styles.detailValue}>{workOrder.partsRequired || '-'}</span>
           </div>
         </div>
@@ -320,12 +320,12 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
         </div>
       )}
 
-      {/* Linked Maintenance Log */}
+      {/* Linked Activity Log */}
       {workOrder.maintenanceLogId && (
         <div className={styles.linkedLogSection}>
-          <h3 className={styles.sectionTitle}>Linked Maintenance Log</h3>
+          <h3 className={styles.sectionTitle}>Linked Activity Log</h3>
           <p className={styles.linkedLogInfo}>
-            ✅ Maintenance log created on completion (ID: {workOrder.maintenanceLogId})
+            ✅ Activity log created on completion (ID: {workOrder.maintenanceLogId})
           </p>
         </div>
       )}
@@ -334,8 +334,8 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
       {showCompleteModal && (
         <div className={styles.modalOverlay} onClick={() => setShowCompleteModal(false)}>
           <div className={styles.completeModal} onClick={e => e.stopPropagation()}>
-            <h3>Complete Work Order</h3>
-            <p>Enter the actual hours worked to complete this work order. A maintenance log will be created automatically.</p>
+            <h3>Complete Task</h3>
+            <p>Enter the actual hours worked to complete this task. An activity log will be created automatically.</p>
             
             <div className={styles.formGroup}>
               <label>Actual Hours Worked *</label>
@@ -371,7 +371,7 @@ export function WorkOrderViewer({ workOrderId }: WorkOrderViewerProps) {
                 onClick={handleComplete}
                 disabled={isUpdating || !completeData.actualHours}
               >
-                {isUpdating ? 'Completing...' : 'Complete & Create Log'}
+                {isUpdating ? 'Completing...' : 'Complete & Create Activity Log'}
               </button>
             </div>
           </div>

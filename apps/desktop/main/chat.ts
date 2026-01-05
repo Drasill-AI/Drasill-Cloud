@@ -3,7 +3,7 @@ import { BrowserWindow } from 'electron';
 import { ChatRequest, IPC_CHANNELS, FileContext } from '@drasill/shared';
 import { getRAGContext, getIndexingStatus } from './rag';
 import * as keychain from './keychain';
-import { CHAT_TOOLS, executeTool, buildEquipmentContext } from './chatTools';
+import { CHAT_TOOLS, executeTool, buildCaseContext } from './chatTools';
 
 let openai: OpenAI | null = null;
 let abortController: AbortController | null = null;
@@ -59,23 +59,23 @@ interface RAGSource {
  * Returns both the prompt and any RAG sources for citation
  */
 async function buildSystemPrompt(context?: FileContext, userQuery?: string): Promise<{ prompt: string; ragSources: RAGSource[] }> {
-  let systemPrompt = `You are Lonnie, an AI assistant for Drasill Cloud - an equipment documentation and maintenance management system.
+  let systemPrompt = `You are a Legal AI assistant for Drasill Legal - a case management and legal research support system.
 
 Your capabilities:
-- Explain technical concepts in documentation
-- Summarize long documents
-- Answer questions about equipment specifications
-- Help find specific information in documents
-- Create maintenance logs and update equipment status via function calls
-- Provide analytics on equipment performance (MTBF, MTTR, availability)
+- Explain legal concepts and terminology in documentation
+- Summarize case files, briefs, and legal documents
+- Answer questions about case details, statutes, and regulations
+- Help find specific information in legal documents and case law
+- Create activity logs and update case status via function calls
+- Provide analytics on caseload (billable hours, resolution time, case progress)
 
-When users want to create logs or update equipment, use the available tools. For status updates, always ask for confirmation first by calling the tool with confirmed=false.
+When users want to create logs or update case status, use the available tools. For status updates, always ask for confirmation first by calling the tool with confirmed=false.
 
 Be concise, accurate, and helpful. When referencing information from provided context, cite specific sources or file names. Summarize actions you take.`;
 
-  // Add equipment context
-  const equipmentContext = buildEquipmentContext();
-  systemPrompt += `\n\n--- EQUIPMENT DATABASE ---\n${equipmentContext}\n--- END EQUIPMENT DATABASE ---`;
+  // Add case context
+  const caseContext = buildCaseContext();
+  systemPrompt += `\n\n--- CASE DATABASE ---\n${caseContext}\n--- END CASE DATABASE ---`;
 
   // Add RAG context if available
   const ragStatus = getIndexingStatus();

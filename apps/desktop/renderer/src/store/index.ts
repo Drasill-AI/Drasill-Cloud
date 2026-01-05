@@ -10,6 +10,8 @@ interface ToastMessage {
 interface AppState {
   // Workspace
   workspacePath: string | null;
+  /** Multiple workspace folders for flexible organization */
+  workspacePaths: string[];
   tree: TreeNode[];
   isLoadingTree: boolean;
 
@@ -65,6 +67,8 @@ interface AppState {
 
   // Actions
   openWorkspace: () => Promise<void>;
+  addWorkspaceFolder: () => Promise<void>;
+  removeWorkspaceFolder: (path: string) => void;
   setWorkspacePath: (path: string | null) => void;
   loadDirectory: (path: string) => Promise<TreeNode[]>;
   toggleDirectory: (node: TreeNode) => Promise<void>;
@@ -99,6 +103,7 @@ interface AppState {
   savePersistedState: () => Promise<void>;
   loadPersistedState: () => Promise<void>;
   restoreWorkspace: (path: string) => Promise<void>;
+  restoreWorkspaces: (paths: string[]) => Promise<void>;
 
   // File cleanup (when file is deleted from workspace)
   removeFileFromAllContexts: (filePath: string) => Promise<void>;
@@ -144,6 +149,7 @@ const MAX_CHAT_HISTORY = 100;
 export const useAppStore = create<AppState>((set, get) => ({
   // Initial state
   workspacePath: null,
+  workspacePaths: [],
   tree: [],
   isLoadingTree: false,
   isOnline: true,
@@ -196,7 +202,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const path = await window.electronAPI.selectWorkspace();
       if (path) {
-        set({ workspacePath: path, tree: [], tabs: [], activeTabId: null, fileContents: new Map() });
+        // Set as primary workspace and add to paths array
+        set({ 
+          workspacePath: path, 
+          workspacePaths: [path],
+          tree: [], 
+          tabs: [], 
+          activeTabId: null, 
+          fileContents: new Map() 
+        });
         const children = await get().loadDirectory(path);
         set({
           tree: [{
@@ -214,6 +228,75 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       get().showToast('error', `Failed to open workspace: ${error}`);
     }
+  },
+
+  addWorkspaceFolder: async () => {
+    try {
+      const path = await window.electronAPI.addWorkspaceFolder();
+      if (path) {
+        const { workspacePaths, tree, loadDirectory } = get();
+        
+        // Check if already added
+        if (workspacePaths.includes(path)) {
+          get().showToast('info', 'This folder is already in the workspace');
+          return;
+        }
+        
+        // Add to paths array
+        const newPaths = [...workspacePaths, path];
+        
+        // If no primary workspace, set this as primary
+        const currentWorkspacePath = get().workspacePath;
+        const newWorkspacePath = currentWorkspacePath || path;
+        
+        // Load directory contents
+        const children = await loadDirectory(path);
+        const newNode: TreeNode = {
+          id: path,
+          name: path.split(/[\\/]/).pop() || path,
+          path: path,
+          isDirectory: true,
+          isExpanded: true,
+          children,
+        };
+        
+        set({ 
+          workspacePath: newWorkspacePath,
+          workspacePaths: newPaths,
+          tree: [...tree, newNode],
+        });
+        
+        get().savePersistedState();
+        get().showToast('success', `Added folder: ${newNode.name}`);
+      }
+    } catch (error) {
+      get().showToast('error', `Failed to add folder: ${error}`);
+    }
+  },
+
+  removeWorkspaceFolder: (pathToRemove: string) => {
+    const { workspacePaths, tree, workspacePath } = get();
+    
+    // Remove from paths array
+    const newPaths = workspacePaths.filter(p => p !== pathToRemove);
+    
+    // Remove from tree
+    const newTree = tree.filter(node => node.path !== pathToRemove);
+    
+    // Update primary workspace if needed
+    let newWorkspacePath = workspacePath;
+    if (workspacePath === pathToRemove) {
+      newWorkspacePath = newPaths.length > 0 ? newPaths[0] : null;
+    }
+    
+    set({
+      workspacePath: newWorkspacePath,
+      workspacePaths: newPaths,
+      tree: newTree,
+    });
+    
+    get().savePersistedState();
+    get().showToast('success', 'Folder removed from workspace');
   },
 
   setWorkspacePath: (path) => {
@@ -248,21 +331,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   refreshTree: async () => {
-    const { workspacePath, loadDirectory } = get();
-    if (!workspacePath) return;
+    const { workspacePaths, loadDirectory } = get();
+    if (workspacePaths.length === 0) return;
     
     try {
-      const children = await loadDirectory(workspacePath);
-      set({
-        tree: [{
-          id: workspacePath,
-          name: workspacePath.split(/[\\/]/).pop() || workspacePath,
-          path: workspacePath,
+      // Load all workspace folders
+      const newTree: TreeNode[] = [];
+      for (const folderPath of workspacePaths) {
+        const children = await loadDirectory(folderPath);
+        newTree.push({
+          id: folderPath,
+          name: folderPath.split(/[\\/]/).pop() || folderPath,
+          path: folderPath,
           isDirectory: true,
           isExpanded: true,
           children,
-        }],
-      });
+        });
+      }
+      set({ tree: newTree });
     } catch (error) {
       get().showToast('error', `Failed to refresh tree: ${error}`);
     }
@@ -688,7 +774,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // State persistence
   savePersistedState: async () => {
-    const { workspacePath, tabs, activeTabId } = get();
+    const { workspacePath, workspacePaths, tabs, activeTabId } = get();
     // Load existing state to preserve firstRunComplete flag
     let existingState: PersistedState | null = null;
     try {
@@ -698,6 +784,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     const state: PersistedState = {
       workspacePath,
+      workspacePaths,
       openTabs: tabs.map(t => ({
         id: t.id,
         name: t.name,
@@ -717,11 +804,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadPersistedState: async () => {
     try {
       const state = await window.electronAPI.loadState();
-      if (state?.workspacePath) {
-        await get().restoreWorkspace(state.workspacePath);
+      // Check for multiple workspace paths first, then fall back to single path
+      const paths = state?.workspacePaths || (state?.workspacePath ? [state.workspacePath] : []);
+      
+      if (paths.length > 0) {
+        await get().restoreWorkspaces(paths);
         
         // Restore tabs
-        if (state.openTabs && state.openTabs.length > 0) {
+        if (state?.openTabs && state.openTabs.length > 0) {
           for (const tab of state.openTabs) {
             await get().openFile(tab.path, tab.name);
           }
@@ -737,19 +827,39 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   restoreWorkspace: async (workspacePath: string) => {
+    // Legacy single workspace restore - redirects to multi-workspace
+    await get().restoreWorkspaces([workspacePath]);
+  },
+
+  restoreWorkspaces: async (paths: string[]) => {
     try {
-      set({ workspacePath, tree: [], tabs: [], activeTabId: null, fileContents: new Map() });
-      const children = await get().loadDirectory(workspacePath);
-      set({
-        tree: [{
-          id: workspacePath,
-          name: workspacePath.split(/[\\/]/).pop() || workspacePath,
-          path: workspacePath,
-          isDirectory: true,
-          isExpanded: true,
-          children,
-        }],
+      set({ 
+        workspacePath: paths[0] || null, 
+        workspacePaths: paths,
+        tree: [], 
+        tabs: [], 
+        activeTabId: null, 
+        fileContents: new Map() 
       });
+      
+      // Load all workspace folders
+      const newTree: TreeNode[] = [];
+      for (const folderPath of paths) {
+        try {
+          const children = await get().loadDirectory(folderPath);
+          newTree.push({
+            id: folderPath,
+            name: folderPath.split(/[\\/]/).pop() || folderPath,
+            path: folderPath,
+            isDirectory: true,
+            isExpanded: true,
+            children,
+          });
+        } catch (err) {
+          console.warn(`Failed to load workspace folder: ${folderPath}`, err);
+        }
+      }
+      set({ tree: newTree });
     } catch (error) {
       get().showToast('error', `Failed to restore workspace: ${error}`);
     }

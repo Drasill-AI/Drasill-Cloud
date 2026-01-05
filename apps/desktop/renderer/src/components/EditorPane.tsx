@@ -68,8 +68,8 @@ export function EditorPane() {
       <div className={styles.empty}>
         <div className={styles.emptyContent}>
           <img src={logoImage} alt="Drasill" className={styles.logo} />
-          <h2>Drasill Cloud</h2>
-          <p>Equipment Documentation Viewer</p>
+          <h2>Drasill Legal</h2>
+          <p>Legal Case Management System</p>
           <div className={styles.shortcuts}>
             <p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> Open Folder</p>
             <p><kbd>Ctrl</kbd>+<kbd>P</kbd> Command Palette</p>
