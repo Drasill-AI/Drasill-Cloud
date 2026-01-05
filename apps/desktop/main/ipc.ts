@@ -22,7 +22,7 @@ import {
   CSVExportOptions,
 } from '@drasill/shared';
 import { sendChatMessage, setApiKey, getApiKey, hasApiKey, cancelStream } from './chat';
-import { indexWorkspace, searchRAG, getIndexingStatus, clearVectorStore, resetOpenAI, initRAG, setPdfExtractionReady } from './rag';
+import { indexWorkspace, searchRAG, getIndexingStatus, clearVectorStore, resetOpenAI, initRAG, setPdfExtractionReady, tryLoadCachedVectorStore } from './rag';
 import { processSchematicToolCall, getSchematicImage } from './schematic';
 import { labelDetectedRegions, generateExplodedView } from './vision';
 import { importEquipmentCSV, exportEquipmentCSV, exportLogsCSV, getEquipmentCSVTemplate } from './csv';
@@ -463,8 +463,13 @@ export function setupIpcHandlers(): void {
   });
 
   // RAG: Get status
-  ipcMain.handle(IPC_CHANNELS.RAG_GET_STATUS, async (): Promise<{ isIndexing: boolean; chunksCount: number }> => {
+  ipcMain.handle(IPC_CHANNELS.RAG_GET_STATUS, async (): Promise<{ isIndexing: boolean; chunksCount: number; lastUpdated: number | null; workspacePath: string | null }> => {
     return getIndexingStatus();
+  });
+
+  // RAG: Try to load cached embeddings for a workspace
+  ipcMain.handle(IPC_CHANNELS.RAG_LOAD_CACHE, async (_event, workspacePath: string): Promise<boolean> => {
+    return await tryLoadCachedVectorStore(workspacePath);
   });
 
   // RAG: Clear

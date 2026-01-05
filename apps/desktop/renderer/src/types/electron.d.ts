@@ -48,10 +48,11 @@ interface ElectronAPI {
   cancelChat: () => Promise<void>;
   onChatToolExecuted: (callback: (data: { action: string; data: unknown }) => void) => () => void;
   // RAG API
-  indexWorkspace: (workspacePath: string) => Promise<{ success: boolean; chunksIndexed: number; error?: string }>;
+  indexWorkspace: (workspacePath: string) => Promise<{ success: boolean; chunksIndexed: number; error?: string; fromCache?: boolean }>;
   onRagIndexProgress: (callback: (data: { current: number; total: number; fileName: string; percentage: number }) => void) => () => void;
-  onRagIndexComplete: (callback: (data: { chunksIndexed: number; filesIndexed: number }) => void) => () => void;
-  getRagStatus: () => Promise<{ isIndexing: boolean; chunksCount: number }>;
+  onRagIndexComplete: (callback: (data: { chunksIndexed: number; filesIndexed: number; fromCache?: boolean }) => void) => () => void;
+  getRagStatus: () => Promise<{ isIndexing: boolean; chunksCount: number; lastUpdated: number | null; workspacePath: string | null }>;
+  loadRagCache: (workspacePath: string) => Promise<boolean>;
   clearRagIndex: () => Promise<void>;
   // State persistence
   saveState: (state: PersistedState) => Promise<void>;

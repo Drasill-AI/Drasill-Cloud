@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, app } from 'electron';
 import { IPC_CHANNELS, TEXT_EXTENSIONS, DOCUMENT_EXTENSIONS, IGNORED_PATTERNS } from '@drasill/shared';
 import * as keychain from './keychain';
 
@@ -41,6 +41,82 @@ let openai: OpenAI | null = null;
 const CHUNK_SIZE = 1000; // Characters per chunk
 const CHUNK_OVERLAP = 200; // Overlap between chunks
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB max per file (PDFs can be large)
+const VECTOR_STORE_VERSION = 1; // Increment when format changes
+
+/**
+ * Get the path to the vector store cache file for a workspace
+ */
+function getVectorStorePath(workspacePath: string): string {
+  const userDataPath = app.getPath('userData');
+  // Create a safe filename from the workspace path
+  const safeWorkspaceName = workspacePath
+    .replace(/[<>:"/\\|?*]/g, '_')
+    .replace(/\s+/g, '_')
+    .slice(-100); // Limit length
+  return path.join(userDataPath, 'vector-cache', `${safeWorkspaceName}.json`);
+}
+
+/**
+ * Save vector store to disk for persistence across sessions
+ */
+async function saveVectorStore(): Promise<void> {
+  if (!vectorStore) return;
+  
+  try {
+    const cachePath = getVectorStorePath(vectorStore.workspacePath);
+    const cacheDir = path.dirname(cachePath);
+    
+    // Ensure cache directory exists
+    await fs.mkdir(cacheDir, { recursive: true });
+    
+    // Save with version info for future compatibility
+    const data = {
+      version: VECTOR_STORE_VERSION,
+      ...vectorStore,
+    };
+    
+    await fs.writeFile(cachePath, JSON.stringify(data), 'utf-8');
+    console.log(`[RAG] Vector store saved to ${cachePath} (${vectorStore.chunks.length} chunks)`);
+  } catch (error) {
+    console.error('[RAG] Failed to save vector store:', error);
+  }
+}
+
+/**
+ * Load vector store from disk if available
+ */
+async function loadVectorStore(workspacePath: string): Promise<boolean> {
+  try {
+    const cachePath = getVectorStorePath(workspacePath);
+    
+    const data = await fs.readFile(cachePath, 'utf-8');
+    const parsed = JSON.parse(data);
+    
+    // Check version compatibility
+    if (parsed.version !== VECTOR_STORE_VERSION) {
+      console.log('[RAG] Vector store version mismatch, re-indexing required');
+      return false;
+    }
+    
+    // Verify workspace path matches
+    if (parsed.workspacePath !== workspacePath) {
+      console.log('[RAG] Vector store workspace mismatch, re-indexing required');
+      return false;
+    }
+    
+    vectorStore = {
+      workspacePath: parsed.workspacePath,
+      chunks: parsed.chunks,
+      lastUpdated: parsed.lastUpdated,
+    };
+    
+    console.log(`[RAG] Loaded vector store from cache (${vectorStore.chunks.length} chunks, last updated: ${new Date(vectorStore.lastUpdated).toLocaleString()})`);
+    return true;
+  } catch (error) {
+    // File doesn't exist or is corrupted - that's fine, we'll re-index
+    return false;
+  }
+}
 
 /**
  * Initialize OpenAI client (async for keychain access)
@@ -344,12 +420,29 @@ function sendProgress(window: BrowserWindow, current: number, total: number, fil
 
 /**
  * Index a workspace for RAG
+ * @param workspacePath - Path to the workspace to index
+ * @param window - BrowserWindow to send progress updates to
+ * @param forceReindex - If true, ignore cached embeddings and re-index everything
  */
-export async function indexWorkspace(workspacePath: string, window: BrowserWindow): Promise<{ success: boolean; chunksIndexed: number; error?: string }> {
-  console.log(`[RAG] indexWorkspace called. PDF extraction ready: ${pdfExtractionReady}`);
+export async function indexWorkspace(workspacePath: string, window: BrowserWindow, forceReindex = false): Promise<{ success: boolean; chunksIndexed: number; error?: string; fromCache?: boolean }> {
+  console.log(`[RAG] indexWorkspace called. PDF extraction ready: ${pdfExtractionReady}, forceReindex: ${forceReindex}`);
   
   if (isIndexing) {
     return { success: false, chunksIndexed: 0, error: 'Indexing already in progress' };
+  }
+  
+  // Try to load from cache first (unless force re-index)
+  if (!forceReindex) {
+    const loaded = await loadVectorStore(workspacePath);
+    if (loaded && vectorStore) {
+      console.log(`[RAG] Using cached vector store with ${vectorStore.chunks.length} chunks`);
+      window.webContents.send(IPC_CHANNELS.RAG_INDEX_COMPLETE, {
+        chunksIndexed: vectorStore.chunks.length,
+        filesIndexed: new Set(vectorStore.chunks.map(c => c.filePath)).size,
+        fromCache: true,
+      });
+      return { success: true, chunksIndexed: vectorStore.chunks.length, fromCache: true };
+    }
   }
   
   const client = await getOpenAI();
@@ -472,6 +565,9 @@ export async function indexWorkspace(workspacePath: string, window: BrowserWindo
       lastUpdated: Date.now(),
     };
     
+    // Save to disk for persistence across sessions
+    await saveVectorStore();
+    
     isIndexing = false;
     
     // Send completion
@@ -574,15 +670,28 @@ export function isWorkspaceIndexed(workspacePath: string): boolean {
 /**
  * Get indexing status
  */
-export function getIndexingStatus(): { isIndexing: boolean; chunksCount: number } {
+export function getIndexingStatus(): { isIndexing: boolean; chunksCount: number; lastUpdated: number | null; workspacePath: string | null } {
   return {
     isIndexing,
     chunksCount: vectorStore?.chunks.length || 0,
+    lastUpdated: vectorStore?.lastUpdated || null,
+    workspacePath: vectorStore?.workspacePath || null,
   };
 }
 
 /**
- * Clear the vector store
+ * Try to load cached vector store for a workspace (call on app startup)
+ */
+export async function tryLoadCachedVectorStore(workspacePath: string): Promise<boolean> {
+  if (vectorStore && vectorStore.workspacePath === workspacePath) {
+    // Already loaded
+    return true;
+  }
+  return await loadVectorStore(workspacePath);
+}
+
+/**
+ * Clear the vector store (memory only - cache file remains)
  */
 export function clearVectorStore(): void {
   vectorStore = null;

@@ -215,8 +215,15 @@ const api = {
   /**
    * Get RAG status
    */
-  getRagStatus: (): Promise<{ isIndexing: boolean; chunksCount: number }> => {
+  getRagStatus: (): Promise<{ isIndexing: boolean; chunksCount: number; lastUpdated: number | null; workspacePath: string | null }> => {
     return ipcRenderer.invoke(IPC_CHANNELS.RAG_GET_STATUS);
+  },
+
+  /**
+   * Try to load cached RAG embeddings for a workspace
+   */
+  loadRagCache: (workspacePath: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.RAG_LOAD_CACHE, workspacePath);
   },
 
   /**
