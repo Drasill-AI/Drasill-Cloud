@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <defs>
+    <style>
+      .label-text { font-family: Arial, sans-serif; font-size: 11px; }
+      .callout-text { font-family: Arial, sans-serif; font-size: 10px; font-weight: bold; }
+      .legend-title { font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; }
+      .legend-text { font-family: Arial, sans-serif; font-size: 10px; }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  
+  <!-- Shadows -->
+  <g id="shadows" opacity="0.1">
+    <polygon points="345.3,340.8 462.7,340.8 462.7,458.2 345.3,458.2" fill="#000000"/>
+    <polygon points="475.8,114.9 593.1,114.9 593.1,232.2 475.8,232.2" fill="#000000"/>
+    <polygon points="204.3,104.3 321.6,104.3 321.6,221.6 204.3,221.6" fill="#000000"/>
+  </g>
+  
+  <!-- Parts -->
+  <g id="parts">
+    <polygon points="341.3,336.8 458.7,336.8 458.7,454.2 341.3,454.2" fill="undefined" fill-opacity="0.85" stroke="#374151" stroke-width="1.5"/>
+    <polygon points="471.8,110.9 589.1,110.9 589.1,228.2 471.8,228.2" fill="undefined" fill-opacity="0.85" stroke="#374151" stroke-width="1.5"/>
+    <polygon points="200.3,100.3 317.6,100.3 317.6,217.6 200.3,217.6" fill="undefined" fill-opacity="0.85" stroke="#374151" stroke-width="1.5"/>
+  </g>
+  
+  <!-- Leader lines -->
+  <g id="leaders" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3,3" fill="none">
+    <line x1="400.0" y1="395.5" x2="473.7" y2="395.5"/>
+    <line x1="530.4" y1="169.6" x2="604.1" y2="169.6"/>
+    <line x1="259.0" y1="159.0" x2="332.6" y2="159.0"/>
+  </g>
+
+  <!-- Callout circles -->
+  <g id="callouts">
+    <circle cx="400.0" cy="395.5" r="12" fill="undefined" stroke="#ffffff" stroke-width="2"/>
+    <text x="400.0" y="396.5" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" class="callout-text">3</text>
+    <circle cx="530.4" cy="169.6" r="12" fill="undefined" stroke="#ffffff" stroke-width="2"/>
+    <text x="530.4" y="170.6" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" class="callout-text">2</text>
+    <circle cx="259.0" cy="159.0" r="12" fill="undefined" stroke="#ffffff" stroke-width="2"/>
+    <text x="259.0" y="160.0" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" class="callout-text">1</text>
+  </g>
+
+  <!-- Labels -->
+  <g id="labels">
+    <rect x="476.7" y="387.5" width="92.5" height="16" fill="#ffffff" fill-opacity="0.9"/>
+    <text x="480.7" y="396.5" dominant-baseline="middle" fill="#1f2937" class="label-text">3. Foundation</text>
+    <rect x="607.1" y="161.6" width="53.5" height="16" fill="#ffffff" fill-opacity="0.9"/>
+    <text x="611.1" y="170.6" dominant-baseline="middle" fill="#1f2937" class="label-text">2. Wall</text>
+    <rect x="335.6" y="151.0" width="53.5" height="16" fill="#ffffff" fill-opacity="0.9"/>
+    <text x="339.6" y="160.0" dominant-baseline="middle" fill="#1f2937" class="label-text">1. Roof</text>
+  </g>
+
+  <!-- Legend -->
+  <g id="legend">
+    <text x="80" y="520" dominant-baseline="middle" fill="#374151" class="legend-title">Categories:</text>
+    <circle cx="160" cy="520" r="5" fill="undefined"/>
+    <text x="170" y="520" dominant-baseline="middle" fill="#374151" class="legend-text">Foundation</text>
+    <circle cx="260" cy="520" r="5" fill="undefined"/>
+    <text x="270" y="520" dominant-baseline="middle" fill="#374151" class="legend-text">Envelope</text>
+    <circle cx="346" cy="520" r="5" fill="undefined"/>
+    <text x="356" y="520" dominant-baseline="middle" fill="#374151" class="legend-text">Roof</text>
+  </g>
+</svg>

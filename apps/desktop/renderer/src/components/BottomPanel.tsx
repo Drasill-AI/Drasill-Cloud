@@ -85,7 +85,7 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
   };
 
   const getHealthClass = (score: number | undefined) => {
-    if (!score) return styles.good;
+    if (score === undefined) return styles.good;
     if (score >= 80) return styles.good;
     if (score >= 50) return styles.warning;
     return styles.critical;
@@ -93,6 +93,10 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
 
   // Calculate health score from analytics data
   const getHealthScore = (item: EquipmentAnalytics): number => {
+    // If equipment is down, health is 0%
+    const eq = equipment.find(e => e.id === item.equipmentId);
+    if (eq?.status === 'down') return 0;
+    
     if (item.availability !== null) {
       return Math.round(item.availability);
     }

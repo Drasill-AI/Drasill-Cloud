@@ -1,5 +1,6 @@
 import { TreeNode } from '@drasill/shared';
 import { useAppStore } from '../store';
+import { useConfirm } from './ConfirmDialog';
 import styles from './TreeItem.module.css';
 
 interface TreeItemProps {
@@ -8,13 +9,46 @@ interface TreeItemProps {
 }
 
 export function TreeItem({ node, depth }: TreeItemProps) {
-  const { toggleDirectory, openFile, activeTabId } = useAppStore();
+  const { toggleDirectory, openFile, activeTabId, removeFileFromAllContexts, refreshTree, showToast } = useAppStore();
+  const confirm = useConfirm();
 
   const handleClick = () => {
     if (node.isDirectory) {
       toggleDirectory(node);
     } else {
       openFile(node.path, node.name);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const itemType = node.isDirectory ? 'folder' : 'file';
+    const confirmed = await confirm({
+      title: `Delete ${itemType}?`,
+      message: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      danger: true,
+    });
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    try {
+      const result = await window.electronAPI.deleteFile(node.path);
+      if (result.success) {
+        // Remove file from all contexts (tabs, equipment associations, etc.)
+        await removeFileFromAllContexts(node.path);
+        // Refresh the file tree
+        refreshTree();
+        showToast('success', `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted`);
+      } else {
+        showToast('error', result.error || `Failed to delete ${itemType}`);
+      }
+    } catch (err) {
+      showToast('error', `Failed to delete ${itemType}`);
     }
   };
 
@@ -43,6 +77,17 @@ export function TreeItem({ node, depth }: TreeItemProps) {
         </span>
         
         <span className={styles.name}>{node.name}</span>
+        
+        <button
+          className={styles.deleteButton}
+          onClick={handleDelete}
+          title={`Delete ${node.isDirectory ? 'folder' : 'file'}`}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
       </div>
 
       {node.isDirectory && node.isExpanded && node.children && (

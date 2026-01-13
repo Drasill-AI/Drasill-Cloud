@@ -1,6 +1,6 @@
 {
   "name": "@drasill/desktop",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Drasill Cloud Desktop App with AI-Powered Schematic Visualizer",
   "author": "Drasill AI LLC",
@@ -22,12 +22,15 @@
   "dependencies": {
     "@drasill/shared": "*",
     "@electron/rebuild": "^4.0.2",
+    "@techstark/opencv-js": "^4.12.0-release.1",
     "better-sqlite3": "^12.5.0",
     "electron-store": "^8.2.0",
     "keytar": "^7.9.0",
     "mammoth": "^1.11.0",
     "openai": "^4.104.0",
+    "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.4.296",
+    "react-image-crop": "^11.0.10",
     "react-pdf": "^10.2.0",
     "vectra": "^0.11.1"
   },

@@ -29,7 +29,7 @@ export interface Tab {
   /** Full file path (for file tabs) */
   path: string;
   /** File type for determining viewer */
-  type: 'text' | 'markdown' | 'pdf' | 'word' | 'schematic' | 'unknown';
+  type: 'text' | 'markdown' | 'pdf' | 'word' | 'schematic' | 'image' | 'equipment' | 'workorder' | 'workorders-list' | 'unknown';
   /** Whether the tab has unsaved changes */
   isDirty?: boolean;
   /** Scroll position to restore */
@@ -41,6 +41,12 @@ export interface Tab {
   viewState?: unknown;
   /** Schematic data (only for schematic tabs) */
   schematicData?: SchematicData;
+  /** Equipment ID (only for equipment tabs) */
+  equipmentId?: string;
+  /** Work order ID (only for work order tabs) */
+  workOrderId?: string;
+  /** Initial page number for PDF tabs */
+  initialPage?: number;
 }
 
 /**
@@ -88,6 +94,7 @@ export interface PersistedState {
   activeTabId: string | null;
   sidebarWidth?: number;
   rightPanelWidth?: number;
+  firstRunComplete?: boolean;
 }
 
 /**
@@ -143,9 +150,43 @@ export const IPC_CHANNELS = {
   DB_INIT: 'db-init',
   // File Operations
   ADD_FILES: 'add-files',
+  DELETE_FILE: 'delete-file',
   // Schematics
   SCHEMATIC_PROCESS_TOOL_CALL: 'schematic-process-tool-call',
   SCHEMATIC_GET_IMAGE: 'schematic-get-image',
+  // Vision - CV + GPT Hybrid
+  VISION_LABEL_REGIONS: 'vision-label-regions',
+  VISION_GENERATE_EXPLODED: 'vision-generate-exploded',
+  // CSV Import/Export
+  CSV_IMPORT_EQUIPMENT: 'csv-import-equipment',
+  CSV_EXPORT_EQUIPMENT: 'csv-export-equipment',
+  CSV_EXPORT_LOGS: 'csv-export-logs',
+  CSV_GET_TEMPLATE: 'csv-get-template',
+  // File-Equipment Associations
+  FILE_ASSOC_ADD: 'file-assoc-add',
+  FILE_ASSOC_REMOVE: 'file-assoc-remove',
+  FILE_ASSOC_REMOVE_BY_PATH: 'file-assoc-remove-by-path',
+  FILE_ASSOC_GET_FOR_EQUIPMENT: 'file-assoc-get-for-equipment',
+  FILE_ASSOC_GET_FOR_FILE: 'file-assoc-get-for-file',
+  // Sample Data Generation
+  GENERATE_SAMPLE_ANALYTICS: 'generate-sample-analytics',
+  // Work Orders
+  WORK_ORDER_GET_ALL: 'work-order-get-all',
+  WORK_ORDER_GET: 'work-order-get',
+  WORK_ORDER_ADD: 'work-order-add',
+  WORK_ORDER_UPDATE: 'work-order-update',
+  WORK_ORDER_DELETE: 'work-order-delete',
+  WORK_ORDER_GET_BY_EQUIPMENT: 'work-order-get-by-equipment',
+  WORK_ORDER_COMPLETE: 'work-order-complete',
+  // Work Order Templates
+  WORK_ORDER_TEMPLATE_GET_ALL: 'work-order-template-get-all',
+  WORK_ORDER_TEMPLATE_GET: 'work-order-template-get',
+  WORK_ORDER_TEMPLATE_ADD: 'work-order-template-add',
+  WORK_ORDER_TEMPLATE_UPDATE: 'work-order-template-update',
+  WORK_ORDER_TEMPLATE_DELETE: 'work-order-template-delete',
+  // PDF Text Extraction (via renderer for DOM support)
+  PDF_EXTRACT_TEXT_REQUEST: 'pdf-extract-text-request',
+  PDF_EXTRACT_TEXT_RESPONSE: 'pdf-extract-text-response',
 } as const;
 
 /**
@@ -155,6 +196,7 @@ export interface RAGSource {
   fileName: string;
   filePath: string;
   section: string;
+  pageNumber?: number; // For PDFs, the page where content was found
 }
 
 /**
@@ -269,6 +311,22 @@ export const DOCUMENT_EXTENSIONS = [
 ];
 
 /**
+ * Image file extensions
+ */
+export const IMAGE_EXTENSIONS = [
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.bmp',
+  '.ico',
+  '.svg',
+  '.webp',
+  '.tiff',
+  '.tif',
+];
+
+/**
  * Binary file extensions to skip
  */
 export const BINARY_EXTENSIONS = [
@@ -285,14 +343,6 @@ export const BINARY_EXTENSIONS = [
   '.gz',
   '.rar',
   '.7z',
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.bmp',
-  '.ico',
-  '.svg',
-  '.webp',
   '.mp3',
   '.mp4',
   '.wav',
@@ -316,6 +366,7 @@ export function getFileType(path: string): Tab['type'] {
   if (ext === 'pdf') return 'pdf';
   if (ext === 'doc' || ext === 'docx') return 'word';
   if (ext === 'md' || ext === 'markdown') return 'markdown';
+  if (IMAGE_EXTENSIONS.some((e) => e.endsWith(ext))) return 'image';
   if (TEXT_EXTENSIONS.some((e) => e.endsWith(ext))) return 'text';
   if (BINARY_EXTENSIONS.some((e) => e.endsWith(ext))) return 'unknown';
   
@@ -452,6 +503,133 @@ export interface BottomPanelState {
   activeTab: 'logs' | 'analytics';
 }
 
+/**
+ * File-Equipment Association
+ * Links files (manuals, images, etc.) to equipment
+ */
+export interface FileEquipmentAssociation {
+  id: string;
+  equipmentId: string;
+  filePath: string;
+  fileName: string;
+  fileType: 'manual' | 'image' | 'schematic' | 'document' | 'other';
+  notes?: string | null;
+  createdAt: string;
+}
+
+// ==========================================
+// Work Order Types
+// ==========================================
+
+/**
+ * Work order status values
+ */
+export type WorkOrderStatus = 'draft' | 'open' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
+
+/**
+ * Work order priority values
+ */
+export type WorkOrderPriority = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Work order type values (same as maintenance log types)
+ */
+export type WorkOrderType = 'preventive' | 'corrective' | 'emergency' | 'inspection';
+
+/**
+ * Work order record
+ */
+export interface WorkOrder {
+  id?: string;
+  workOrderNumber: string;
+  equipmentId: string;
+  templateId?: string | null;
+  title: string;
+  description?: string | null;
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  status: WorkOrderStatus;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  actualStart?: string | null;
+  actualEnd?: string | null;
+  estimatedHours?: number | null;
+  actualHours?: number | null;
+  technician?: string | null;
+  partsRequired?: string | null; // JSON array (simple for now)
+  notes?: string | null;
+  maintenanceLogId?: string | null; // Linked log created on completion
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Work order form data (for creating/editing)
+ */
+export interface WorkOrderFormData {
+  equipmentId: string;
+  templateId?: string | null;
+  title: string;
+  description?: string | null;
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  estimatedHours?: number | null;
+  technician?: string | null;
+  partsRequired?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Work order completion data
+ */
+export interface WorkOrderCompletionData {
+  actualHours: number;
+  notes?: string | null;
+  createMaintenanceLog?: boolean; // Default true
+}
+
+/**
+ * Checklist item for templates
+ */
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  required: boolean;
+}
+
+/**
+ * Work order template record
+ */
+export interface WorkOrderTemplate {
+  id?: string;
+  name: string;
+  description?: string | null;
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  estimatedHours?: number | null;
+  partsRequired?: string | null; // JSON array
+  checklist?: string | null; // JSON array of ChecklistItem
+  equipmentType?: string | null; // Optional filter (e.g., "CAT D9")
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Work order template form data
+ */
+export interface WorkOrderTemplateFormData {
+  name: string;
+  description?: string | null;
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  estimatedHours?: number | null;
+  partsRequired?: string | null;
+  checklist?: ChecklistItem[];
+  equipmentType?: string | null;
+}
+
 // ==========================================
 // Schematic Visualizer Types
 // ==========================================
@@ -489,6 +667,124 @@ export interface SchematicData {
   manualContext: string;
   timestamp: number;
 }
+
+// ==========================================
+// Vision - CV + GPT Hybrid Types
+// ==========================================
+
+/**
+ * Region detected by local CV (geometry only)
+ */
+export interface CVDetectedRegion {
+  id: string;
+  bbox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  area: number;
+  centroid: { x: number; y: number };
+}
+
+/**
+ * Component category for vision detection
+ */
+export type VisionComponentCategory = 'structure' | 'mechanical' | 'electrical' | 'body' | 'interior' | 'other';
+
+/**
+ * Labeled component (CV bbox + GPT label)
+ */
+export interface LabeledComponent {
+  id: string;
+  name: string;
+  category: VisionComponentCategory;
+  confidence: number;
+  description: string;
+  bbox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+/**
+ * Request to label detected regions
+ */
+export interface LabelRegionsRequest {
+  imageBase64: string;
+  regions: CVDetectedRegion[];
+  context?: string;
+}
+
+/**
+ * Result of labeling operation
+ */
+export interface LabelingResult {
+  success: boolean;
+  components: LabeledComponent[];
+  summary?: string;
+  error?: string;
+}
+
+/**
+ * Request to generate exploded view
+ */
+export interface GenerateExplodedRequest {
+  components: LabeledComponent[];
+  summary: string;
+  whiteBackground?: boolean;
+  showLabels?: boolean;
+  style?: 'technical' | 'artistic';
+}
+
+/**
+ * Result of exploded view generation
+ */
+export interface GenerateExplodedResult {
+  success: boolean;
+  imageUrl?: string;
+  error?: string;
+}
+
+// ==========================================
+// CSV Import/Export Types
+// ==========================================
+
+/**
+ * CSV import result
+ */
+export interface CSVImportResult {
+  success: boolean;
+  imported: number;
+  skipped: number;
+  errors: Array<{ row: number; field: string; message: string }>;
+}
+
+/**
+ * CSV export options
+ */
+export interface CSVExportOptions {
+  includeHeaders?: boolean;
+  delimiter?: ',' | ';' | '\t';
+  dateFormat?: string;
+}
+
+/**
+ * Equipment CSV row for import
+ */
+export interface EquipmentCSVRow {
+  name: string;
+  make: string;
+  model: string;
+  serialNumber?: string;
+  location?: string;
+  installDate?: string;
+  status?: 'operational' | 'maintenance' | 'down' | 'retired';
+  hourlyCost?: number;
+}
+
 
 /**
  * Request to process OpenAI tool call

@@ -3,12 +3,14 @@ import { useAppStore } from '../store';
 import { FileContext, RAGSource } from '@drasill/shared';
 import styles from './RightPanel.module.css';
 import lonnieIcon from '../assets/lonnie.png';
+import { ConnectionStatus } from './ConnectionStatus';
 
 export function RightPanel() {
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showContextSelector, setShowContextSelector] = useState(false);
   const [selectedContextPaths, setSelectedContextPaths] = useState<Set<string>>(new Set());
+  const [showOnlyCitedSources, setShowOnlyCitedSources] = useState(true);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -32,6 +34,8 @@ export function RightPanel() {
     indexWorkspace,
     clearRagIndex,
     openFile,
+    isOnline,
+    showToast,
   } = useAppStore();
 
   // Get current file context - supports multiple files
@@ -81,6 +85,28 @@ export function RightPanel() {
     };
   }, [selectedContextPaths, tabs, fileContents, activeTab]);
   
+  // Get cited source file paths from the last assistant message
+  const citedSourcePaths = useMemo(() => {
+    const paths = new Set<string>();
+    // Find the last assistant message with sources
+    for (let i = chatMessages.length - 1; i >= 0; i--) {
+      const msg = chatMessages[i];
+      if (msg.role === 'assistant' && msg.ragSources && msg.ragSources.length > 0) {
+        msg.ragSources.forEach(source => paths.add(source.filePath));
+        break;
+      }
+    }
+    return paths;
+  }, [chatMessages]);
+  
+  // Filter tabs based on showOnlyCitedSources toggle
+  const displayTabs = useMemo(() => {
+    if (showOnlyCitedSources && citedSourcePaths.size > 0) {
+      return tabs.filter(tab => citedSourcePaths.has(tab.path));
+    }
+    return tabs;
+  }, [tabs, showOnlyCitedSources, citedSourcePaths]);
+  
   // Toggle file selection for context
   const toggleContextFile = useCallback((path: string) => {
     setSelectedContextPaths(prev => {
@@ -110,9 +136,13 @@ export function RightPanel() {
 
   const handleSend = useCallback(() => {
     if (!input.trim() || isChatLoading) return;
+    if (!isOnline) {
+      showToast('warning', 'AI features unavailable while offline');
+      return;
+    }
     sendMessage(input.trim(), fileContext);
     setInput('');
-  }, [input, isChatLoading, sendMessage, fileContext]);
+  }, [input, isChatLoading, isOnline, sendMessage, fileContext, showToast]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -133,7 +163,8 @@ export function RightPanel() {
   const handleCitationClick = useCallback((source: RAGSource) => {
     // Extract filename from path for the tab
     const fileName = source.fileName;
-    openFile(source.filePath, fileName);
+    // If the source has a page number, pass it to navigate to that page
+    openFile(source.filePath, fileName, { initialPage: source.pageNumber });
   }, [openFile]);
 
   // Render message content with clickable citations
@@ -262,14 +293,14 @@ export function RightPanel() {
           <button 
             className={styles.settingsButton}
             onClick={() => setShowSettings(true)}
-            title="Settings"
+            title="API Settings"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="12" cy="5" r="1" />
-              <circle cx="12" cy="19" r="1" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3" />
+              <line x1="8" y1="12" x2="16" y2="12" />
             </svg>
           </button>
+          <ConnectionStatus inline />
         </div>
       </div>
 
@@ -324,26 +355,45 @@ export function RightPanel() {
             <div className={styles.contextSelector}>
               <div className={styles.contextSelectorHeader}>
                 <span>Select files to include in context:</span>
-                {selectedContextPaths.size > 0 && (
-                  <button 
-                    className={styles.clearSelection}
-                    onClick={() => setSelectedContextPaths(new Set())}
-                  >
-                    Clear
-                  </button>
-                )}
+                <div className={styles.contextSelectorActions}>
+                  {citedSourcePaths.size > 0 && (
+                    <label className={styles.citedToggle}>
+                      <input
+                        type="checkbox"
+                        checked={showOnlyCitedSources}
+                        onChange={(e) => setShowOnlyCitedSources(e.target.checked)}
+                      />
+                      <span>Cited only</span>
+                    </label>
+                  )}
+                  {selectedContextPaths.size > 0 && (
+                    <button 
+                      className={styles.clearSelection}
+                      onClick={() => setSelectedContextPaths(new Set())}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
               <div className={styles.contextFileList}>
-                {tabs.map(tab => (
-                  <label key={tab.id} className={styles.contextFileItem}>
-                    <input
-                      type="checkbox"
-                      checked={selectedContextPaths.has(tab.path)}
-                      onChange={() => toggleContextFile(tab.path)}
-                    />
-                    <span className={styles.contextFileName}>{tab.name}</span>
-                  </label>
-                ))}
+                {displayTabs.length === 0 ? (
+                  <div className={styles.noFiles}>No files available</div>
+                ) : (
+                  displayTabs.map(tab => (
+                    <label key={tab.id} className={`${styles.contextFileItem} ${citedSourcePaths.has(tab.path) ? styles.cited : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedContextPaths.has(tab.path)}
+                        onChange={() => toggleContextFile(tab.path)}
+                      />
+                      <span className={styles.contextFileName}>{tab.name}</span>
+                      {citedSourcePaths.has(tab.path) && (
+                        <span className={styles.citedBadge}>cited</span>
+                      )}
+                    </label>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -374,9 +424,22 @@ export function RightPanel() {
               </button>
             )}
             {hasApiKey && ragChunksCount > 0 && (
-              <p className={styles.ragHint}>
-                📚 {ragChunksCount} chunks indexed - Ready to answer questions!
-              </p>
+              <div className={styles.ragReadySection}>
+                <p className={styles.ragHint}>
+                  📚 {ragChunksCount} chunks indexed - Ready to answer questions!
+                </p>
+                <button 
+                  className={styles.clearReindexButton}
+                  onClick={async () => {
+                    await clearRagIndex();
+                    indexWorkspace();
+                  }}
+                  disabled={isIndexing}
+                  title="Clear existing index and re-index workspace"
+                >
+                  {isIndexing ? 'Indexing...' : '🔄 Clear & Re-index'}
+                </button>
+              </div>
             )}
             {hasApiKey && fileContext && (
               <p className={styles.contextHint}>
@@ -413,9 +476,9 @@ export function RightPanel() {
                         key={idx}
                         className={styles.sourceButton}
                         onClick={() => handleCitationClick(source)}
-                        title={source.section}
+                        title={source.pageNumber ? `Page ${source.pageNumber}` : source.section}
                       >
-                        [{idx + 1}] {source.fileName}
+                        [{idx + 1}] {source.fileName}{source.pageNumber ? ` (p.${source.pageNumber})` : ''}
                       </button>
                     ))}
                   </div>

@@ -10,10 +10,16 @@ import Store from 'electron-store';
 const SERVICE_NAME = 'DrasillCloud';
 const ACCOUNT_NAME = 'openai-api-key';
 
-// Legacy store for migration
+/**
+ * LEGACY: electron-store used to store API keys before v1.1.0
+ * This is only used for one-time migration to OS keychain.
+ * The encryption key is not sensitive - it only protected the local store file.
+ * TODO: Remove this migration code after sufficient user adoption (v1.3+)
+ */
+const LEGACY_ENCRYPTION_KEY = Buffer.from('ZHJhc2lsbC1jbG91ZC1zZWN1cmUta2V5LTIwMjQ=', 'base64').toString('utf-8');
 const legacyStore = new Store({
   name: 'drasill-config',
-  encryptionKey: 'drasill-cloud-secure-key-2024',
+  encryptionKey: LEGACY_ENCRYPTION_KEY,
 });
 const LEGACY_API_KEY_STORE_KEY = 'openai-api-key';
 

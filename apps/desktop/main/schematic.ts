@@ -99,9 +99,22 @@ async function checkJavaService(): Promise<boolean> {
 
 /**
  * Get schematic image as base64 data URL
+ * Note: Path validation should be done by the caller (ipc.ts) before calling this function
  */
-export async function getSchematicImage(imagePath: string): Promise<string> {
+export async function getSchematicImage(imagePath: string, workspacePath?: string): Promise<string> {
   try {
+    // Validate path is within workspace if workspace is provided
+    if (workspacePath) {
+      const resolvedPath = path.resolve(imagePath);
+      const resolvedWorkspace = path.resolve(workspacePath);
+      const normalizedPath = resolvedPath.toLowerCase();
+      const normalizedWorkspace = resolvedWorkspace.toLowerCase();
+      
+      if (!normalizedPath.startsWith(normalizedWorkspace + path.sep) && normalizedPath !== normalizedWorkspace) {
+        throw new Error('Access denied: Path is outside the workspace');
+      }
+    }
+    
     // Check if file exists
     await fs.access(imagePath);
 

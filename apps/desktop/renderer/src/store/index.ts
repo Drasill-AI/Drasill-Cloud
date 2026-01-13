@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Tab, TreeNode, getFileType, ChatMessage, FileContext, PersistedState, Equipment, BottomPanelState, MaintenanceLog, SchematicToolCall, SchematicData } from '@drasill/shared';
+import { Tab, TreeNode, getFileType, ChatMessage, FileContext, PersistedState, Equipment, BottomPanelState, MaintenanceLog, SchematicToolCall, SchematicData, WorkOrder, WorkOrderTemplate } from '@drasill/shared';
 
 interface ToastMessage {
   id: string;
@@ -12,6 +12,9 @@ interface AppState {
   workspacePath: string | null;
   tree: TreeNode[];
   isLoadingTree: boolean;
+
+  // Connection status
+  isOnline: boolean;
 
   // Chat
   chatMessages: ChatMessage[];
@@ -48,6 +51,15 @@ interface AppState {
   logsRefreshTrigger: number;
   editingLog: MaintenanceLog | null;
 
+  // Work Orders
+  workOrders: WorkOrder[];
+  workOrderTemplates: WorkOrderTemplate[];
+  isWorkOrderModalOpen: boolean;
+  isTemplateModalOpen: boolean;
+  editingWorkOrder: WorkOrder | null;
+  editingTemplate: WorkOrderTemplate | null;
+  workOrdersRefreshTrigger: number;
+
   // Bottom Panel
   bottomPanelState: BottomPanelState;
 
@@ -58,12 +70,13 @@ interface AppState {
   toggleDirectory: (node: TreeNode) => Promise<void>;
   refreshTree: () => Promise<void>;
   
-  openFile: (path: string, name: string) => Promise<void>;
+  openFile: (path: string, name: string, options?: { initialPage?: number }) => Promise<void>;
   closeTab: (tabId: string) => void;
   closeActiveTab: () => void;
   setActiveTab: (tabId: string) => void;
   saveTabViewState: (tabId: string, viewState: unknown) => void;
   getTabViewState: (tabId: string) => unknown | undefined;
+  updateTabInitialPage: (tabId: string, page: number) => void;
 
   toggleCommandPalette: () => void;
   
@@ -88,6 +101,9 @@ interface AppState {
   loadPersistedState: () => Promise<void>;
   restoreWorkspace: (path: string) => Promise<void>;
 
+  // File cleanup (when file is deleted from workspace)
+  removeFileFromAllContexts: (filePath: string) => Promise<void>;
+
   // Equipment actions
   loadEquipment: () => Promise<void>;
   setSelectedEquipment: (id: string | null) => void;
@@ -104,13 +120,34 @@ interface AppState {
 
   // Schematic actions
   openSchematicTab: (toolCall: SchematicToolCall) => Promise<void>;
+
+  // Equipment viewer
+  openEquipmentViewer: (equipmentId: string) => void;
+
+  // Work Order actions
+  loadWorkOrders: () => Promise<void>;
+  loadWorkOrderTemplates: () => Promise<void>;
+  setWorkOrderModalOpen: (open: boolean) => void;
+  setTemplateModalOpen: (open: boolean) => void;
+  setEditingWorkOrder: (workOrder: WorkOrder | null) => void;
+  setEditingTemplate: (template: WorkOrderTemplate | null) => void;
+  refreshWorkOrders: () => void;
+  openWorkOrderViewer: (workOrderId: string) => void;
+  openWorkOrdersPanel: () => void;
+
+  // Connection status
+  setOnlineStatus: (isOnline: boolean) => void;
 }
+
+// Maximum number of chat messages to keep in history (to prevent memory growth)
+const MAX_CHAT_HISTORY = 100;
 
 export const useAppStore = create<AppState>((set, get) => ({
   // Initial state
   workspacePath: null,
   tree: [],
   isLoadingTree: false,
+  isOnline: true,
   tabs: [],
   activeTabId: null,
   fileContents: new Map(),
@@ -138,6 +175,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   isEquipmentModalOpen: false,
   logsRefreshTrigger: 0,
   editingLog: null,
+
+  // Work Orders state
+  workOrders: [],
+  workOrderTemplates: [],
+  isWorkOrderModalOpen: false,
+  isTemplateModalOpen: false,
+  editingWorkOrder: null,
+  editingTemplate: null,
+  workOrdersRefreshTrigger: 0,
 
   // Bottom panel state
   bottomPanelState: {
@@ -178,7 +224,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadDirectory: async (path: string): Promise<TreeNode[]> => {
     try {
       const entries = await window.electronAPI.readDir(path);
-      return entries.map((entry) => ({
+      
+      // Filter to only show PDFs, image files, and directories
+      const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.tif'];
+      const filteredEntries = entries.filter((entry) => {
+        if (entry.isDirectory) return true;
+        const ext = entry.extension?.toLowerCase() || '';
+        return allowedExtensions.includes(ext);
+      });
+      
+      return filteredEntries.map((entry) => ({
         id: entry.path,
         name: entry.name,
         path: entry.path,
@@ -245,13 +300,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  openFile: async (path: string, name: string) => {
+  openFile: async (path: string, name: string, options?: { initialPage?: number }) => {
     const { tabs, loadingFiles } = get();
 
     // Check if already open
     const existingTab = tabs.find((t) => t.path === path);
     if (existingTab) {
-      set({ activeTabId: existingTab.id });
+      // If opening with a specific page and it's a PDF, update the initial page
+      if (options?.initialPage && existingTab.type === 'pdf') {
+        set((state) => ({
+          tabs: state.tabs.map(t => 
+            t.id === existingTab.id 
+              ? { ...t, initialPage: options.initialPage }
+              : t
+          ),
+          activeTabId: existingTab.id,
+        }));
+      } else {
+        set({ activeTabId: existingTab.id });
+      }
       return;
     }
 
@@ -264,6 +331,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         name,
         path,
         type: 'pdf',
+        initialPage: options?.initialPage,
       };
       set((state) => ({
         tabs: [...state.tabs, newTab],
@@ -392,6 +460,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     return get().tabViewStates.get(tabId);
   },
 
+  updateTabInitialPage: (tabId: string, page: number) => {
+    set((state) => ({
+      tabs: state.tabs.map(t => 
+        t.id === tabId ? { ...t, initialPage: page } : t
+      ),
+    }));
+  },
+
   toggleCommandPalette: () => {
     set((state) => ({ isCommandPaletteOpen: !state.isCommandPaletteOpen }));
   },
@@ -441,11 +517,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       timestamp: Date.now(),
     };
 
-    set((state) => ({
-      chatMessages: [...state.chatMessages, userMessage],
-      isChatLoading: true,
-      chatError: null,
-    }));
+    set((state) => {
+      // Trim history if it exceeds max (keep recent messages)
+      let messages = [...state.chatMessages, userMessage];
+      if (messages.length > MAX_CHAT_HISTORY) {
+        messages = messages.slice(-MAX_CHAT_HISTORY);
+      }
+      return {
+        chatMessages: messages,
+        isChatLoading: true,
+        chatError: null,
+      };
+    });
 
     const assistantMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -629,6 +712,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   // State persistence
   savePersistedState: async () => {
     const { workspacePath, tabs, activeTabId } = get();
+    // Load existing state to preserve firstRunComplete flag
+    let existingState: PersistedState | null = null;
+    try {
+      existingState = await window.electronAPI.loadState();
+    } catch {
+      // Ignore errors loading existing state
+    }
     const state: PersistedState = {
       workspacePath,
       openTabs: tabs.map(t => ({
@@ -638,6 +728,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         type: t.type,
       })),
       activeTabId,
+      firstRunComplete: existingState?.firstRunComplete ?? false,
     };
     try {
       await window.electronAPI.saveState(state);
@@ -711,6 +802,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (error) {
       get().showToast('error', `Failed to restore workspace: ${error}`);
+    }
+  },
+
+  // Remove file from all contexts when deleted from workspace
+  removeFileFromAllContexts: async (filePath: string) => {
+    try {
+      // Close the tab if open
+      get().closeTab(filePath);
+      
+      // Remove from equipment file associations in database
+      await window.electronAPI.removeFileAssociationsByPath(filePath);
+      
+      console.log('[Store] Removed file from all contexts:', filePath);
+    } catch (error) {
+      console.error('[Store] Failed to remove file from contexts:', error);
     }
   },
 
@@ -834,6 +940,160 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast('error', `Failed to open schematic: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
+
+  openEquipmentViewer: (equipmentId: string) => {
+    const { equipment, tabs } = get();
+    const equipmentData = equipment.find(e => e.id === equipmentId);
+    
+    if (!equipmentData) {
+      get().showToast('error', 'Equipment not found');
+      return;
+    }
+
+    // Check if tab already exists
+    const existingTab = tabs.find((t) => 
+      t.type === 'equipment' && t.equipmentId === equipmentId
+    );
+
+    if (existingTab) {
+      set({ activeTabId: existingTab.id });
+      return;
+    }
+
+    // Create new equipment tab
+    const tabId = `equipment-${equipmentId}`;
+    const newTab: Tab = {
+      id: tabId,
+      name: `⚙️ ${equipmentData.name}`,
+      path: '',
+      type: 'equipment',
+      equipmentId,
+    };
+
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: newTab.id,
+    }));
+
+    get().savePersistedState();
+  },
+
+  setOnlineStatus: (isOnline: boolean) => {
+    set({ isOnline });
+  },
+
+  // Work Order Actions
+  loadWorkOrders: async () => {
+    try {
+      const workOrders = await window.electronAPI.getAllWorkOrders();
+      set({ workOrders });
+    } catch (error) {
+      console.error('[Store] Failed to load work orders:', error);
+      get().showToast('error', 'Failed to load work orders');
+    }
+  },
+
+  loadWorkOrderTemplates: async () => {
+    try {
+      const workOrderTemplates = await window.electronAPI.getAllWorkOrderTemplates();
+      set({ workOrderTemplates });
+    } catch (error) {
+      console.error('[Store] Failed to load work order templates:', error);
+      get().showToast('error', 'Failed to load templates');
+    }
+  },
+
+  setWorkOrderModalOpen: (open: boolean) => {
+    set({ isWorkOrderModalOpen: open });
+    if (!open) {
+      set({ editingWorkOrder: null });
+    }
+  },
+
+  setTemplateModalOpen: (open: boolean) => {
+    set({ isTemplateModalOpen: open });
+    if (!open) {
+      set({ editingTemplate: null });
+    }
+  },
+
+  setEditingWorkOrder: (workOrder: WorkOrder | null) => {
+    set({ editingWorkOrder: workOrder });
+  },
+
+  setEditingTemplate: (template: WorkOrderTemplate | null) => {
+    set({ editingTemplate: template });
+  },
+
+  refreshWorkOrders: () => {
+    set((state) => ({ workOrdersRefreshTrigger: state.workOrdersRefreshTrigger + 1 }));
+    get().loadWorkOrders();
+  },
+
+  openWorkOrderViewer: (workOrderId: string) => {
+    const { workOrders, tabs } = get();
+    const workOrder = workOrders.find(wo => wo.id === workOrderId);
+    
+    if (!workOrder) {
+      get().showToast('error', 'Work order not found');
+      return;
+    }
+
+    // Check if tab already exists
+    const existingTab = tabs.find((t) => 
+      t.type === 'workorder' && t.workOrderId === workOrderId
+    );
+
+    if (existingTab) {
+      set({ activeTabId: existingTab.id });
+      return;
+    }
+
+    // Create new work order tab
+    const tabId = `workorder-${workOrderId}`;
+    const newTab: Tab = {
+      id: tabId,
+      name: `📋 ${workOrder.workOrderNumber}`,
+      path: '',
+      type: 'workorder',
+      workOrderId,
+    };
+
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: newTab.id,
+    }));
+
+    get().savePersistedState();
+  },
+
+  openWorkOrdersPanel: () => {
+    const { tabs } = get();
+
+    // Check if tab already exists
+    const existingTab = tabs.find((t) => t.type === 'workorders-list');
+
+    if (existingTab) {
+      set({ activeTabId: existingTab.id });
+      return;
+    }
+
+    // Create new work orders list tab
+    const tabId = 'workorders-list';
+    const newTab: Tab = {
+      id: tabId,
+      name: '📋 Work Orders',
+      path: '',
+      type: 'workorders-list',
+    };
+
+    set((state) => ({
+      tabs: [...state.tabs, newTab],
+      activeTabId: newTab.id,
+    }));
+
+    get().savePersistedState();
+  },
 }));
 
 // Initialize on store creation
@@ -844,6 +1104,8 @@ useAppStore.getState().loadPersistedState();
 // Initialize database and load equipment
 window.electronAPI.initDatabase().then(() => {
   useAppStore.getState().loadEquipment();
+  useAppStore.getState().loadWorkOrders();
+  useAppStore.getState().loadWorkOrderTemplates();
 });
 
 // Listen for chat tool executions to refresh data
@@ -856,5 +1118,9 @@ window.electronAPI.onChatToolExecuted((data) => {
   
   if (data.action === 'equipment_status_updated') {
     useAppStore.getState().loadEquipment();
+  }
+
+  if (data.action === 'work_order_created' || data.action === 'work_order_updated' || data.action === 'work_order_completed') {
+    useAppStore.getState().refreshWorkOrders();
   }
 });

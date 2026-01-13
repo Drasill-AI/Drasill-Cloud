@@ -14,10 +14,18 @@ import {
   PersistedState,
   SchematicToolCall,
   SchematicToolResponse,
+  CVDetectedRegion,
+  LabelingResult,
+  GenerateExplodedRequest,
+  GenerateExplodedResult,
+  CSVImportResult,
+  CSVExportOptions,
 } from '@drasill/shared';
 import { sendChatMessage, setApiKey, getApiKey, hasApiKey, cancelStream } from './chat';
 import { indexWorkspace, searchRAG, getIndexingStatus, clearVectorStore, resetOpenAI, initRAG, setPdfExtractionReady, tryLoadCachedVectorStore } from './rag';
 import { processSchematicToolCall, getSchematicImage } from './schematic';
+import { labelDetectedRegions, generateExplodedView } from './vision';
+import { importEquipmentCSV, exportEquipmentCSV, exportLogsCSV, getEquipmentCSVTemplate } from './csv';
 import {
   getDatabase,
   createEquipment,
@@ -33,12 +41,89 @@ import {
   createFailureEvent,
   getFailureEventsForEquipment,
   calculateEquipmentAnalytics,
+  addFileAssociation,
+  removeFileAssociation,
+  removeFileAssociationsByPath,
+  getFileAssociationsForEquipment,
+  getFileAssociationsForFile,
+  generateSampleAnalyticsData,
+  // Work Orders
+  createWorkOrder,
+  getWorkOrder,
+  getAllWorkOrders,
+  getWorkOrdersForEquipment,
+  updateWorkOrder,
+  deleteWorkOrder,
+  completeWorkOrder,
+  // Work Order Templates
+  createWorkOrderTemplate,
+  getWorkOrderTemplate,
+  getAllWorkOrderTemplates,
+  updateWorkOrderTemplate,
+  deleteWorkOrderTemplate,
+
   Equipment,
   MaintenanceLog,
   FailureEvent,
+  FileEquipmentAssociation,
+  WorkOrder,
+  WorkOrderTemplate,
 } from './database';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit for reading files
+
+// Current workspace path for path validation
+let currentWorkspacePath: string | null = null;
+
+/**
+ * Validates that a file path is within the current workspace to prevent path traversal attacks.
+ * @throws Error if path is outside workspace or workspace is not set
+ */
+function validatePathWithinWorkspace(filePath: string): void {
+  if (!currentWorkspacePath) {
+    throw new Error('No workspace is currently open');
+  }
+  
+  const resolvedPath = path.resolve(filePath);
+  const resolvedWorkspace = path.resolve(currentWorkspacePath);
+  
+  // Normalize paths for comparison (handles case sensitivity on Windows)
+  const normalizedPath = resolvedPath.toLowerCase();
+  const normalizedWorkspace = resolvedWorkspace.toLowerCase();
+  
+  if (!normalizedPath.startsWith(normalizedWorkspace + path.sep) && normalizedPath !== normalizedWorkspace) {
+    throw new Error('Access denied: Path is outside the workspace');
+  }
+}
+
+/**
+ * Validates a string parameter is not empty and within reasonable length
+ */
+function validateStringParam(value: unknown, name: string, maxLength = 10000): string {
+  if (typeof value !== 'string') {
+    throw new Error(`${name} must be a string`);
+  }
+  if (value.length === 0) {
+    throw new Error(`${name} cannot be empty`);
+  }
+  if (value.length > maxLength) {
+    throw new Error(`${name} exceeds maximum length of ${maxLength} characters`);
+  }
+  return value;
+}
+
+/**
+ * Validates a number parameter is within range
+ */
+function validateNumberParam(value: unknown, name: string, min = 0, max = Number.MAX_SAFE_INTEGER): number {
+  if (typeof value !== 'number' || isNaN(value)) {
+    throw new Error(`${name} must be a valid number`);
+  }
+  if (value < min || value > max) {
+    throw new Error(`${name} must be between ${min} and ${max}`);
+  }
+  return value;
+}
 
 // State persistence store
 const stateStore = new Store<{ appState: PersistedState }>({
@@ -53,6 +138,15 @@ const stateStore = new Store<{ appState: PersistedState }>({
 });
 
 export function setupIpcHandlers(): void {
+  // Initialize RAG system (PDF extraction IPC handlers)
+  initRAG();
+  
+  // Handle PDF extraction ready signal from renderer
+  ipcMain.on('pdf-extraction-ready', () => {
+    console.log('[IPC] Received pdf-extraction-ready signal from renderer');
+    setPdfExtractionReady(true);
+  });
+
   // Select workspace folder
   ipcMain.handle(IPC_CHANNELS.SELECT_WORKSPACE, async (): Promise<string | null> => {
     const result = await dialog.showOpenDialog({
@@ -64,12 +158,19 @@ export function setupIpcHandlers(): void {
       return null;
     }
 
+    // Store workspace path for path validation
+    currentWorkspacePath = result.filePaths[0];
     return result.filePaths[0];
   });
 
   // Read directory contents
   ipcMain.handle(IPC_CHANNELS.READ_DIR, async (_event, dirPath: string): Promise<DirEntry[]> => {
     try {
+      // Validate path is within workspace (allow workspace root)
+      if (currentWorkspacePath) {
+        validatePathWithinWorkspace(dirPath);
+      }
+      
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
       
       const results: DirEntry[] = [];
@@ -115,6 +216,9 @@ export function setupIpcHandlers(): void {
   // Read file contents
   ipcMain.handle(IPC_CHANNELS.READ_FILE, async (_event, filePath: string): Promise<FileReadResult> => {
     try {
+      // Validate path is within workspace
+      validatePathWithinWorkspace(filePath);
+      
       // Check file size first
       const stats = await fs.stat(filePath);
       
@@ -140,6 +244,9 @@ export function setupIpcHandlers(): void {
   // Read file as binary (Base64) for PDFs and other binary files
   ipcMain.handle(IPC_CHANNELS.READ_FILE_BINARY, async (_event, filePath: string): Promise<{ path: string; data: string }> => {
     try {
+      // Validate path is within workspace
+      validatePathWithinWorkspace(filePath);
+      
       const stats = await fs.stat(filePath);
       
       // 20MB limit for binary files
@@ -166,6 +273,9 @@ export function setupIpcHandlers(): void {
   // Read Word document and extract text
   ipcMain.handle(IPC_CHANNELS.READ_WORD_FILE, async (_event, filePath: string): Promise<{ path: string; content: string }> => {
     try {
+      // Validate path is within workspace
+      validatePathWithinWorkspace(filePath);
+      
       const mammoth = await import('mammoth');
       const buffer = await fs.readFile(filePath);
       const result = await mammoth.extractRawText({ buffer });
@@ -189,10 +299,12 @@ export function setupIpcHandlers(): void {
         title: 'Add Files to Workspace',
         properties: ['openFile', 'multiSelections'],
         filters: [
-          { name: 'Documents', extensions: ['pdf', 'md', 'txt', 'markdown'] },
+          { name: 'All Supported', extensions: ['pdf', 'md', 'txt', 'markdown', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'tiff', 'tif'] },
+          { name: 'Documents', extensions: ['pdf', 'md', 'txt', 'markdown', 'doc', 'docx'] },
+          { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'tiff', 'tif'] },
           { name: 'PDF Files', extensions: ['pdf'] },
-          { name: 'Markdown Files', extensions: ['md', 'markdown'] },
-          { name: 'Text Files', extensions: ['txt'] },
+          { name: 'Word Documents', extensions: ['doc', 'docx'] },
+          { name: 'All Files', extensions: ['*'] },
         ],
       });
 
@@ -228,6 +340,32 @@ export function setupIpcHandlers(): void {
     } catch (error) {
       console.error('Failed to add files:', error);
       throw new Error(`Failed to add files: ${error}`);
+    }
+  });
+
+  // Delete file from workspace
+  ipcMain.handle(IPC_CHANNELS.DELETE_FILE, async (_event, filePath: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // Security check - validate path is within workspace
+      validatePathWithinWorkspace(filePath);
+      
+      const stats = await fs.stat(filePath);
+      
+      if (stats.isDirectory()) {
+        // For directories, use recursive delete
+        await fs.rm(filePath, { recursive: true, force: true });
+      } else {
+        await fs.unlink(filePath);
+      }
+      
+      console.log('[IPC] Deleted:', filePath);
+      return { success: true };
+    } catch (error) {
+      console.error('[IPC] Delete failed:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete file' 
+      };
     }
   });
 
@@ -312,11 +450,20 @@ export function setupIpcHandlers(): void {
   // State: Save persisted state
   ipcMain.handle(IPC_CHANNELS.STATE_SAVE, async (_event, state: PersistedState): Promise<void> => {
     stateStore.set('appState', state);
+    // Update current workspace path when state is saved
+    if (state.workspacePath) {
+      currentWorkspacePath = state.workspacePath;
+    }
   });
 
   // State: Load persisted state
   ipcMain.handle(IPC_CHANNELS.STATE_LOAD, async (): Promise<PersistedState> => {
-    return stateStore.get('appState');
+    const state = stateStore.get('appState');
+    // Restore current workspace path from persisted state
+    if (state?.workspacePath) {
+      currentWorkspacePath = state.workspacePath;
+    }
+    return state;
   });
 
   // ==========================================
@@ -346,16 +493,29 @@ export function setupIpcHandlers(): void {
 
   // Add equipment
   ipcMain.handle(IPC_CHANNELS.EQUIPMENT_ADD, async (_event, equipment: Omit<Equipment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Equipment> => {
+    // Validate required fields
+    validateStringParam(equipment.name, 'Equipment name', 500);
+    validateStringParam(equipment.make, 'Make', 200);
+    validateStringParam(equipment.model, 'Model', 200);
+    
     return createEquipment(equipment);
   });
 
   // Update equipment
   ipcMain.handle(IPC_CHANNELS.EQUIPMENT_UPDATE, async (_event, id: string, equipment: Partial<Equipment>): Promise<Equipment | null> => {
+    validateStringParam(id, 'Equipment ID', 100);
+    
+    // Validate fields if provided
+    if (equipment.name !== undefined) validateStringParam(equipment.name, 'Equipment name', 500);
+    if (equipment.make !== undefined) validateStringParam(equipment.make, 'Make', 200);
+    if (equipment.model !== undefined) validateStringParam(equipment.model, 'Model', 200);
+    
     return updateEquipment(id, equipment);
   });
 
   // Delete equipment
   ipcMain.handle(IPC_CHANNELS.EQUIPMENT_DELETE, async (_event, id: string): Promise<boolean> => {
+    validateStringParam(id, 'Equipment ID', 100);
     return deleteEquipment(id);
   });
 
@@ -388,6 +548,14 @@ export function setupIpcHandlers(): void {
 
   // Add maintenance log
   ipcMain.handle(IPC_CHANNELS.LOGS_ADD, async (_event, log: Omit<MaintenanceLog, 'id' | 'createdAt'>): Promise<MaintenanceLog> => {
+    // Validate required fields
+    validateStringParam(log.equipmentId, 'Equipment ID', 100);
+    validateStringParam(log.type, 'Maintenance type', 50);
+    // Notes is optional, but validate if provided
+    if (log.notes) {
+      validateStringParam(log.notes, 'Notes', 10000);
+    }
+    
     return createMaintenanceLog(log);
   });
 
@@ -398,16 +566,19 @@ export function setupIpcHandlers(): void {
 
   // Get maintenance logs for specific equipment
   ipcMain.handle(IPC_CHANNELS.LOGS_GET_BY_EQUIPMENT, async (_event, equipmentId: string, _limit?: number): Promise<MaintenanceLog[]> => {
+    validateStringParam(equipmentId, 'Equipment ID', 100);
     return getMaintenanceLogsForEquipment(equipmentId);
   });
 
   // Update maintenance log
   ipcMain.handle(IPC_CHANNELS.LOGS_UPDATE, async (_event, id: string, data: Partial<Omit<MaintenanceLog, 'id' | 'createdAt'>>): Promise<MaintenanceLog | null> => {
+    validateStringParam(id, 'Log ID', 100);
     return updateMaintenanceLog(id, data);
   });
 
   // Delete maintenance log
   ipcMain.handle(IPC_CHANNELS.LOGS_DELETE, async (_event, id: string): Promise<boolean> => {
+    validateStringParam(id, 'Log ID', 100);
     return deleteMaintenanceLog(id);
   });
 
@@ -486,4 +657,299 @@ export function setupIpcHandlers(): void {
       }
     }
   );
+
+  // ==========================================
+  // Vision (GPT-4V Labeling + Exploded View)
+  // ==========================================
+
+  // Label detected regions with GPT-4V
+  ipcMain.handle(
+    IPC_CHANNELS.VISION_LABEL_REGIONS,
+    async (_event, request: { imageBase64: string; regions: CVDetectedRegion[]; context?: string }): Promise<LabelingResult> => {
+      try {
+        console.log('[IPC] Labeling regions with GPT-4V:', request.regions.length, 'regions');
+        const result = await labelDetectedRegions(request.imageBase64, request.regions, request.context);
+        return result;
+      } catch (error) {
+        console.error('[IPC] Error labeling regions:', error);
+        return {
+          success: false,
+          components: [],
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    }
+  );
+
+  // Generate exploded view diagram with DALL-E 3
+  ipcMain.handle(
+    IPC_CHANNELS.VISION_GENERATE_EXPLODED,
+    async (_event, request: GenerateExplodedRequest): Promise<GenerateExplodedResult> => {
+      try {
+        console.log('[IPC] Generating exploded view for:', request.components.length, 'components');
+        const result = await generateExplodedView(request.components, request.summary, {
+          whiteBackground: request.whiteBackground,
+          showLabels: request.showLabels,
+          style: request.style,
+        });
+        return result;
+      } catch (error) {
+        console.error('[IPC] Error generating exploded view:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    }
+  );
+
+  // ==========================================
+  // CSV Import/Export
+  // ==========================================
+
+  // Import equipment from CSV
+  ipcMain.handle(IPC_CHANNELS.CSV_IMPORT_EQUIPMENT, async (): Promise<CSVImportResult> => {
+    try {
+      console.log('[IPC] Importing equipment from CSV');
+      const result = await importEquipmentCSV();
+      console.log('[IPC] CSV import result:', result.imported, 'imported,', result.skipped, 'skipped');
+      return result;
+    } catch (error) {
+      console.error('[IPC] Error importing CSV:', error);
+      return {
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: [{ row: 0, field: '', message: error instanceof Error ? error.message : 'Unknown error' }],
+      };
+    }
+  });
+
+  // Export equipment to CSV
+  ipcMain.handle(IPC_CHANNELS.CSV_EXPORT_EQUIPMENT, async (_event, options?: CSVExportOptions): Promise<{ success: boolean; path?: string; error?: string }> => {
+    try {
+      console.log('[IPC] Exporting equipment to CSV');
+      const result = await exportEquipmentCSV(options || {});
+      return result;
+    } catch (error) {
+      console.error('[IPC] Error exporting equipment CSV:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  // Export maintenance logs to CSV
+  ipcMain.handle(IPC_CHANNELS.CSV_EXPORT_LOGS, async (_event, equipmentId?: string, options?: CSVExportOptions): Promise<{ success: boolean; path?: string; error?: string }> => {
+    try {
+      console.log('[IPC] Exporting logs to CSV', equipmentId ? `for equipment ${equipmentId}` : 'for all equipment');
+      const result = await exportLogsCSV(equipmentId, options || {});
+      return result;
+    } catch (error) {
+      console.error('[IPC] Error exporting logs CSV:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  // Get equipment CSV template
+  ipcMain.handle(IPC_CHANNELS.CSV_GET_TEMPLATE, async (): Promise<string> => {
+    return getEquipmentCSVTemplate();
+  });
+
+  // ==========================================
+  // File-Equipment Associations
+  // ==========================================
+
+  // Add file association
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_ADD, async (
+    _event, 
+    data: Omit<FileEquipmentAssociation, 'id' | 'createdAt'>
+  ): Promise<FileEquipmentAssociation> => {
+    console.log('[IPC] Adding file association:', data.filePath, 'to equipment:', data.equipmentId);
+    return addFileAssociation(data);
+  });
+
+  // Remove file association
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_REMOVE, async (
+    _event, 
+    equipmentId: string, 
+    filePath: string
+  ): Promise<boolean> => {
+    console.log('[IPC] Removing file association:', filePath, 'from equipment:', equipmentId);
+    return removeFileAssociation(equipmentId, filePath);
+  });
+
+  // Remove all file associations for a file path (when file is deleted)
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_REMOVE_BY_PATH, async (
+    _event, 
+    filePath: string
+  ): Promise<number> => {
+    console.log('[IPC] Removing all file associations for:', filePath);
+    return removeFileAssociationsByPath(filePath);
+  });
+
+  // Get file associations for equipment
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_GET_FOR_EQUIPMENT, async (
+    _event, 
+    equipmentId: string
+  ): Promise<FileEquipmentAssociation[]> => {
+    return getFileAssociationsForEquipment(equipmentId);
+  });
+
+  // Get file associations for file
+  ipcMain.handle(IPC_CHANNELS.FILE_ASSOC_GET_FOR_FILE, async (
+    _event, 
+    filePath: string
+  ): Promise<FileEquipmentAssociation[]> => {
+    return getFileAssociationsForFile(filePath);
+  });
+
+  // ==========================================
+  // Sample Data Generation
+  // ==========================================
+
+  // Generate sample analytics data for testing
+  ipcMain.handle(IPC_CHANNELS.GENERATE_SAMPLE_ANALYTICS, async (
+    _event,
+    equipmentId: string
+  ): Promise<{ failuresCreated: number; logsCreated: number }> => {
+    console.log('[IPC] Generating sample analytics data for equipment:', equipmentId);
+    const result = generateSampleAnalyticsData(equipmentId);
+    console.log('[IPC] Generated', result.failuresCreated, 'failures and', result.logsCreated, 'logs');
+    return result;
+  });
+
+  // ==========================================
+  // Work Orders
+  // ==========================================
+
+  // Get all work orders
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_GET_ALL, async (): Promise<WorkOrder[]> => {
+    return getAllWorkOrders();
+  });
+
+  // Get single work order
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_GET, async (_event, id: string): Promise<WorkOrder | null> => {
+    validateStringParam(id, 'Work order ID', 100);
+    return getWorkOrder(id);
+  });
+
+  // Add work order
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_ADD, async (
+    _event, 
+    workOrder: Omit<WorkOrder, 'id' | 'workOrderNumber' | 'maintenanceLogId' | 'createdAt' | 'updatedAt'>
+  ): Promise<WorkOrder> => {
+    // Validate required fields
+    validateStringParam(workOrder.title, 'Title', 500);
+    validateStringParam(workOrder.type, 'Type', 50);
+    validateStringParam(workOrder.priority, 'Priority', 50);
+    validateStringParam(workOrder.status, 'Status', 50);
+    
+    console.log('[IPC] Creating work order:', workOrder.title);
+    return createWorkOrder(workOrder);
+  });
+
+  // Update work order
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_UPDATE, async (
+    _event, 
+    id: string, 
+    data: Partial<Omit<WorkOrder, 'id' | 'workOrderNumber' | 'createdAt' | 'updatedAt'>>
+  ): Promise<WorkOrder | null> => {
+    validateStringParam(id, 'Work order ID', 100);
+    
+    // Validate fields if provided
+    if (data.title !== undefined) validateStringParam(data.title, 'Title', 500);
+    if (data.type !== undefined) validateStringParam(data.type, 'Type', 50);
+    if (data.priority !== undefined) validateStringParam(data.priority, 'Priority', 50);
+    if (data.status !== undefined) validateStringParam(data.status, 'Status', 50);
+    
+    console.log('[IPC] Updating work order:', id);
+    return updateWorkOrder(id, data);
+  });
+
+  // Delete work order
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_DELETE, async (_event, id: string): Promise<boolean> => {
+    validateStringParam(id, 'Work order ID', 100);
+    console.log('[IPC] Deleting work order:', id);
+    return deleteWorkOrder(id);
+  });
+
+  // Get work orders for equipment
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_GET_BY_EQUIPMENT, async (
+    _event, 
+    equipmentId: string
+  ): Promise<WorkOrder[]> => {
+    validateStringParam(equipmentId, 'Equipment ID', 100);
+    return getWorkOrdersForEquipment(equipmentId);
+  });
+
+  // Complete work order (with auto maintenance log creation)
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_COMPLETE, async (
+    _event,
+    id: string,
+    actualHours: number,
+    notes?: string | null,
+    createLog?: boolean
+  ): Promise<{ workOrder: WorkOrder; maintenanceLog?: MaintenanceLog } | null> => {
+    validateStringParam(id, 'Work order ID', 100);
+    validateNumberParam(actualHours, 'Actual hours', 0, 10000);
+    
+    console.log('[IPC] Completing work order:', id, 'with', actualHours, 'hours');
+    const result = completeWorkOrder(id, actualHours, notes, createLog !== false);
+    if (result) {
+      console.log('[IPC] Work order completed, maintenance log created:', result.maintenanceLog?.id);
+    }
+    return result;
+  });
+
+  // ==========================================
+  // Work Order Templates
+  // ==========================================
+
+  // Get all templates
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_GET_ALL, async (): Promise<WorkOrderTemplate[]> => {
+    return getAllWorkOrderTemplates();
+  });
+
+  // Get single template
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_GET, async (_event, id: string): Promise<WorkOrderTemplate | null> => {
+    validateStringParam(id, 'Template ID', 100);
+    return getWorkOrderTemplate(id);
+  });
+
+  // Add template
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_ADD, async (
+    _event, 
+    template: Omit<WorkOrderTemplate, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<WorkOrderTemplate> => {
+    // Validate required fields
+    validateStringParam(template.name, 'Template name', 500);
+    validateStringParam(template.type, 'Type', 50);
+    validateStringParam(template.priority, 'Priority', 50);
+    
+    console.log('[IPC] Creating work order template:', template.name);
+    return createWorkOrderTemplate(template);
+  });
+
+  // Update template
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_UPDATE, async (
+    _event, 
+    id: string, 
+    data: Partial<Omit<WorkOrderTemplate, 'id' | 'createdAt' | 'updatedAt'>>
+  ): Promise<WorkOrderTemplate | null> => {
+    validateStringParam(id, 'Template ID', 100);
+    
+    // Validate fields if provided
+    if (data.name !== undefined) validateStringParam(data.name, 'Template name', 500);
+    if (data.type !== undefined) validateStringParam(data.type, 'Type', 50);
+    if (data.priority !== undefined) validateStringParam(data.priority, 'Priority', 50);
+    
+    console.log('[IPC] Updating work order template:', id);
+    return updateWorkOrderTemplate(id, data);
+  });
+
+  // Delete template
+  ipcMain.handle(IPC_CHANNELS.WORK_ORDER_TEMPLATE_DELETE, async (_event, id: string): Promise<boolean> => {
+    validateStringParam(id, 'Template ID', 100);
+    console.log('[IPC] Deleting work order template:', id);
+    return deleteWorkOrderTemplate(id);
+  });
 }

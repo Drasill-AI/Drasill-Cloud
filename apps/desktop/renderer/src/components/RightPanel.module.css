@@ -166,6 +166,27 @@
   color: var(--text-muted);
 }
 
+.contextSelectorActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.citedToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.citedToggle input {
+  accent-color: var(--accent);
+  width: 12px;
+  height: 12px;
+}
+
 .clearSelection {
   background: none;
   border: none;
@@ -213,6 +234,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+}
+
+.contextFileItem.cited {
+  background-color: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+}
+
+.citedBadge {
+  font-size: 9px;
+  padding: 2px 5px;
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.noFiles {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px;
+  text-align: center;
 }
 
 .content {
@@ -635,4 +681,32 @@
   border-radius: 6px;
   display: inline-block;
   margin-top: 10px;
+}
+
+.ragReadySection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.clearReindexButton {
+  background: var(--button-secondary-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clearReindexButton:hover:not(:disabled) {
+  background: var(--button-secondary-hover);
+  border-color: var(--accent);
+}
+
+.clearReindexButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
