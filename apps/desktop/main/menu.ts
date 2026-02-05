@@ -44,6 +44,13 @@ export function createMenu(mainWindow: BrowserWindow | null): Menu {
           },
         },
         { type: 'separator' },
+        {
+          label: 'Sign Out',
+          click: () => {
+            mainWindow?.webContents.send('menu:sign-out');
+          },
+        },
+        { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' },
       ],
     },
@@ -106,7 +113,7 @@ export function createMenu(mainWindow: BrowserWindow | null): Menu {
       label: 'Help',
       submenu: [
         {
-          label: 'About Drasill Cloud',
+          label: 'About Drasill Finance',
           click: () => {
             mainWindow?.webContents.send('menu:about');
           },

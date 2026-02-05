@@ -1,15 +1,31 @@
-# Drasill Cloud
+# Drasill Finance
 
-A lightweight VS Code-like desktop application for equipment documentation, built with Electron, React, and TypeScript.
+A modern desktop application for lending deal flow management and underwriting, built with Electron, React, and TypeScript.
 
 ## Features
 
-- **File Explorer**: Browse workspace folders with a tree view
-- **Monaco Editor**: View text and Markdown files with syntax highlighting
-- **Tabbed Interface**: Open multiple files in tabs with scroll position preservation
-- **PDF Placeholder**: PDF viewer coming soon
-- **Assistant Panel**: AI chat interface (stub)
-- **Command Palette**: Quick access to commands (Ctrl/Cmd+P)
+### Document Management
+- **File Explorer**: Browse local or OneDrive workspace folders with a tree view
+- **PDF Viewer**: Full PDF viewing with search, zoom, and page navigation
+- **Word Document Support**: View .docx files with proper formatting
+- **Monaco Editor**: View and edit text files with syntax highlighting
+- **Tabbed Interface**: Open multiple files in tabs with state preservation
+
+### Deal Pipeline Management
+- **Deal Tracking**: Create, update, and manage lending deals through pipeline stages
+- **Activity Logging**: Track calls, emails, meetings, notes, and documents for each deal
+- **Pipeline Analytics**: Visual dashboard with deal counts, values, and stage breakdowns
+- **CSV Import/Export**: Bulk import deals from CSV or export your pipeline
+
+### AI-Powered Assistant
+- **RAG-based Search**: Hybrid BM25 + vector search across indexed documents
+- **Natural Language Interface**: Ask questions about your deals and documents
+- **Citation Support**: AI responses include clickable citations to source documents
+- **Tool Calling**: AI can add activities, update deal stages, and retrieve schematics
+
+### Cloud Integration
+- **OneDrive Support**: Connect to OneDrive and work with cloud documents
+- **Workspace Persistence**: Automatically restores your last workspace on startup
 
 ## Project Structure
 
@@ -25,6 +41,7 @@ A lightweight VS Code-like desktop application for equipment documentation, buil
 
 - Node.js 18+ 
 - npm 9+
+- OpenAI API key (for AI features)
 
 ## Installation
 
@@ -74,6 +91,11 @@ npm run package:mac -w apps/desktop
 | `Ctrl/Cmd + Shift + O` | Open Workspace Folder |
 | `Ctrl/Cmd + P` | Command Palette |
 | `Ctrl/Cmd + W` | Close Current Tab |
+| `Ctrl/Cmd + J` | Toggle Bottom Panel |
+| `Ctrl/Cmd + /` | Focus Chat Input |
+| `Ctrl/Cmd + Tab` | Next Tab |
+| `Ctrl/Cmd + Shift + Tab` | Previous Tab |
+| `Ctrl/Cmd + 1-9` | Switch to Tab by Number |
 
 ## Architecture
 
@@ -85,6 +107,8 @@ The renderer process never directly accesses the filesystem. All file operations
 - `readDir(path)` - Lists directory contents
 - `readFile(path)` - Reads file content
 - `stat(path)` - Gets file/directory stats
+- `createFile()`, `createFolder()`, `renameFile()` - File operations
+- OneDrive APIs for cloud document access
 
 ### State Management
 
@@ -93,6 +117,8 @@ Uses Zustand for lightweight state management:
 - Open tabs and active tab
 - File contents cache
 - View states for Monaco editor
+- Deal and activity data
+- RAG indexing state
 
 ### Security
 

@@ -1,0 +1,356 @@
+/* Activity Modal Styles */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: var(--bg-secondary, #1a1a1a);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 12px;
+  width: 480px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #e6e6e6);
+}
+
+.title svg {
+  width: 24px;
+  height: 24px;
+  color: var(--accent, #4C8DFF);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #9AA0A6);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background-color 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.closeButton:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--text-primary, #e6e6e6);
+}
+
+.content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.formRow {
+  display: flex;
+  gap: 16px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #9AA0A6);
+}
+
+.required {
+  color: var(--error, #F87171);
+}
+
+.input,
+.select,
+.textarea {
+  background: var(--bg-primary, #1E1E1E);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary, #e6e6e6);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: var(--accent, #4C8DFF);
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(76, 141, 255, 0.15));
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-muted, #6B7280);
+}
+
+.select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239AA0A6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+}
+
+.select option {
+  background: var(--bg-secondary, #1a1a1a);
+  color: var(--text-primary, #e6e6e6);
+  padding: 8px;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.5;
+}
+
+.templateSection {
+  margin-bottom: 8px;
+}
+
+.templateSelect {
+  width: 100%;
+  background: var(--bg-primary, #1E1E1E);
+  border: 1px dashed var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-muted, #6B7280);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239AA0A6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+}
+
+.templateSelect:hover {
+  border-color: var(--accent, #4C8DFF);
+  color: var(--text-secondary, #9AA0A6);
+}
+
+.templateSelect:focus {
+  border-color: var(--accent, #4C8DFF);
+  border-style: solid;
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(76, 141, 255, 0.15));
+}
+
+.templateSelect option {
+  background: var(--bg-secondary, #1a1a1a);
+  color: var(--text-primary, #e6e6e6);
+  padding: 8px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  background: var(--bg-tertiary, #252525);
+  border-radius: 0 0 12px 12px;
+}
+
+.cancelButton {
+  background: transparent;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  color: var(--text-secondary, #9AA0A6);
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.cancelButton:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--text-primary, #e6e6e6);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.submitButton {
+  background: var(--accent, #4C8DFF);
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  transition: background-color 0.15s, transform 0.1s;
+}
+
+.submitButton:hover {
+  background: var(--accent-hover, #6BA3FF);
+}
+
+.submitButton:active {
+  transform: scale(0.98);
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.deleteButton {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid var(--error, #F87171);
+  color: var(--error, #F87171);
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  margin-right: auto;
+  transition: background-color 0.15s;
+}
+
+.deleteButton:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.deleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Document Sources / Citations */
+.labelHint {
+  font-weight: 400;
+  color: var(--text-muted, #808080);
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+.sourcesList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.sourceItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.sourceFileName {
+  flex: 1;
+  color: var(--text-primary, #fff);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sourcePage {
+  color: var(--text-muted, #808080);
+  font-size: 12px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.removeSourceButton {
+  background: none;
+  border: none;
+  color: var(--text-muted, #808080);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.removeSourceButton:hover {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--error, #F87171);
+}
+
+.addSourceSection {
+  margin-top: 4px;
+}
+
+.sourceSelect {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border, #3d3d3d);
+  border-radius: 6px;
+  color: var(--text-primary, #cccccc);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sourceSelect:focus {
+  outline: none;
+  border-color: var(--accent, #4D9CFF);
+}

@@ -64,6 +64,33 @@
   text-align: center;
 }
 
+.pageInput {
+  width: 40px;
+  padding: 4px 6px;
+  font-size: 13px;
+  text-align: center;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  outline: none;
+}
+
+.pageInput:focus {
+  border-color: var(--accent);
+}
+
+.pageSeparator {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.totalPages {
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 30px;
+}
+
 .fileName {
   font-size: 13px;
   font-weight: 500;

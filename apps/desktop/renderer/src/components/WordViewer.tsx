@@ -4,9 +4,11 @@ import styles from './PdfViewer.module.css'; // Reuse PDF viewer styles
 interface WordViewerProps {
   fileName: string;
   path: string;
+  source?: 'local' | 'onedrive';
+  oneDriveId?: string;
 }
 
-export function WordViewer({ fileName, path }: WordViewerProps) {
+export function WordViewer({ fileName, path, source, oneDriveId }: WordViewerProps) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,8 +19,17 @@ export function WordViewer({ fileName, path }: WordViewerProps) {
       setError(null);
       
       try {
-        const result = await window.electronAPI.readWordFile(path);
-        setContent(result.content);
+        let content: string;
+        if (source === 'onedrive' && oneDriveId) {
+          // For OneDrive, read the file content as base64 and parse it
+          const oneDriveResult = await window.electronAPI.readOneDriveFile(oneDriveId);
+          const wordResult = await window.electronAPI.readWordFileBuffer(oneDriveResult.content);
+          content = wordResult.content;
+        } else {
+          const result = await window.electronAPI.readWordFile(path);
+          content = result.content;
+        }
+        setContent(content);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load Word document');
       } finally {
@@ -27,7 +38,7 @@ export function WordViewer({ fileName, path }: WordViewerProps) {
     }
 
     loadWord();
-  }, [path]);
+  }, [path, source, oneDriveId]);
 
   if (loading) {
     return (

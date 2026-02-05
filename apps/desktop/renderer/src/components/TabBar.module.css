@@ -6,6 +6,10 @@
   overflow: hidden;
 }
 
+.tabBar.activePane {
+  border-bottom-color: var(--accent);
+}
+
 .tabs {
   display: flex;
   overflow-x: auto;
@@ -93,4 +97,28 @@
   opacity: 1;
   background-color: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.closeSplitButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.closeSplitButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.closeSplitButton svg {
+  width: 14px;
+  height: 14px;
 }

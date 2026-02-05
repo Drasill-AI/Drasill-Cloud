@@ -62,3 +62,66 @@
 .children {
   /* Container for child items */
 }
+
+.contextMenu {
+  position: fixed;
+  background: var(--bg-secondary, #1a1a1a);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary, #e6e6e6);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+}
+
+.contextMenuItem:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.contextMenuItem svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted, #8b8b8b);
+}
+
+.contextMenuItem:last-child svg {
+  color: var(--error, #F87171);
+}
+
+.contextMenuDivider {
+  height: 1px;
+  background: var(--border-color, rgba(255, 255, 255, 0.1));
+  margin: 4px 8px;
+}
+
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  background: var(--bg-primary, #0d0d0d);
+  border: 1px solid var(--accent, #3B82F6);
+  border-radius: 4px;
+  color: var(--text-primary, #e6e6e6);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.renameInput::placeholder {
+  color: var(--text-muted, #8b8b8b);}

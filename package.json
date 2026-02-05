@@ -2,7 +2,7 @@
   "name": "drasill-cloud",
   "version": "1.1.0",
   "private": true,
-  "description": "Equipment documentation desktop app with AI-powered schematic visualizer",
+  "description": "Drasill Finance - Deal Management Desktop App",
   "author": "Drasill AI LLC",
   "license": "MIT",
   "workspaces": [
@@ -26,5 +26,9 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "prettier": "^3.2.5",
     "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "7zip-bin": "^5.2.0",
+    "app-builder-bin": "^4.2.0"
   }
 }

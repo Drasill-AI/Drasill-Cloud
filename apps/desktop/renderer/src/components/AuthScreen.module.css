@@ -1,0 +1,211 @@
+.container {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.card {
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 48px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logoImage {
+  width: 180px;
+  height: auto;
+  margin-bottom: 12px;
+}
+
+.logo p {
+  color: #9AA0A6;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.form h2 {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.field label {
+  display: block;
+  color: #aaa;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.field input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 15px;
+  transition: border-color 0.2s, background 0.2s;
+  box-sizing: border-box;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: #4C8DFF;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.field input::placeholder {
+  color: #666;
+}
+
+.error {
+  background: rgba(255, 82, 82, 0.1);
+  border: 1px solid rgba(255, 82, 82, 0.3);
+  border-radius: 8px;
+  color: #ff5252;
+  font-size: 13px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.button {
+  width: 100%;
+  padding: 14px;
+  background: #4C8DFF;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.button:hover:not(:disabled) {
+  background: #3a7be8;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.button:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
+
+.toggle {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.toggle p {
+  color: #888;
+  font-size: 14px;
+  margin: 0;
+}
+
+.toggle button {
+  background: none;
+  border: none;
+  color: #4C8DFF;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.toggle button:hover {
+  color: #6ba3ff;
+}
+
+.forgotPassword {
+  background: none;
+  border: none;
+  color: #4C8DFF;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-align: right;
+  margin-bottom: 16px;
+  display: block;
+  width: 100%;
+}
+
+.forgotPassword:hover {
+  color: #6ba3ff;
+  text-decoration: underline;
+}
+
+.backLink {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 12px 0 0 0;
+  text-align: center;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.backLink:hover {
+  color: #4C8DFF;
+}
+
+.formSubtext {
+  color: #888;
+  font-size: 14px;
+  text-align: center;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.successMessage {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.successMessage svg {
+  width: 48px;
+  height: 48px;
+  color: #34d399;
+  margin-bottom: 16px;
+}
+
+.successMessage p {
+  color: #fff;
+  font-size: 14px;
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+
+.successMessage strong {
+  color: #4C8DFF;
+}
+
+.subtext {
+  color: #888 !important;
+  font-size: 13px !important;
+}

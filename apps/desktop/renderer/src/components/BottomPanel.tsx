@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '../store';
-import { MaintenanceLog, EquipmentAnalytics } from '@drasill/shared';
+import { DealActivity, PipelineAnalytics } from '@drasill/shared';
 import styles from './BottomPanel.module.css';
 
 interface BottomPanelProps {
@@ -10,34 +10,106 @@ interface BottomPanelProps {
   onToggle: () => void;
 }
 
-export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: BottomPanelProps) {
-  const [activeTab, setActiveTab] = useState<'logs' | 'analytics'>('logs');
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | 'all'>('all');
-  const [logs, setLogs] = useState<MaintenanceLog[]>([]);
-  const [analytics, setAnalytics] = useState<EquipmentAnalytics[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const { equipment, showToast, setLogModalOpen, setEditingLog, logsRefreshTrigger } = useAppStore();
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  note: 'Note',
+  call: 'Call',
+  email: 'Email',
+  document: 'Document',
+  meeting: 'Meeting',
+};
 
-  // Load data when panel opens or equipment selection changes
+export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: BottomPanelProps) {
+  const [activeTab, setActiveTab] = useState<'activities' | 'pipeline'>('activities');
+  const [selectedDealId, setSelectedDealId] = useState<string | 'all'>('all');
+  const [activities, setActivities] = useState<DealActivity[]>([]);
+  const [analytics, setAnalytics] = useState<PipelineAnalytics | null>(null);
+  const { exportDealToPdf, exportPipelineToPdf } = useAppStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [dealSearchQuery, setDealSearchQuery] = useState('');
+  
+  const { deals, showToast, setActivityModalOpen, setEditingActivity, activitiesRefreshTrigger, loadDeals } = useAppStore();
+
+  // Filter and sort deals - pinned first, then by search query
+  const filteredDeals = deals
+    .filter(deal => {
+      if (!dealSearchQuery.trim()) return true;
+      const query = dealSearchQuery.toLowerCase();
+      return (
+        deal.borrowerName.toLowerCase().includes(query) ||
+        deal.dealNumber?.toLowerCase().includes(query) ||
+        deal.stage.toLowerCase().includes(query) ||
+        deal.assignedTo?.toLowerCase().includes(query)
+      );
+    })
+    .sort((a, b) => {
+      // Pinned deals first
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      // Then by borrower name
+      return a.borrowerName.localeCompare(b.borrowerName);
+    });
+
+  // Toggle pin status for a deal
+  const handleTogglePin = async (dealId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const deal = deals.find(d => d.id === dealId);
+    if (!deal) return;
+    
+    try {
+      await window.electronAPI.updateDeal(dealId, { isPinned: !deal.isPinned });
+      loadDeals();
+      showToast('success', deal.isPinned ? 'Deal unpinned' : 'Deal pinned');
+    } catch (error) {
+      showToast('error', 'Failed to update deal');
+    }
+  };
+
+  // Quick stage change handler
+  const handleQuickStageChange = async (dealId: string, newStage: string) => {
+    const deal = deals.find(d => d.id === dealId);
+    if (!deal || deal.stage === newStage) return;
+    
+    try {
+      await window.electronAPI.updateDeal(dealId, { stage: newStage });
+      loadDeals();
+      showToast('success', `Stage changed to "${newStage}"`);
+    } catch (error) {
+      showToast('error', 'Failed to update stage');
+    }
+  };
+
+  // Deal stages for quick change
+  const DEAL_STAGES = [
+    'Application',
+    'Document Collection',
+    'Underwriting',
+    'Credit Review',
+    'Approval',
+    'Documentation',
+    'Funding',
+    'Closed',
+    'On Hold',
+    'Declined'
+  ];
+
+  // Load data when panel opens or deal selection changes
   useEffect(() => {
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, selectedEquipmentId, activeTab, logsRefreshTrigger]);
+  }, [isOpen, selectedDealId, activeTab, activitiesRefreshTrigger]);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      if (activeTab === 'logs') {
-        const logsData = selectedEquipmentId === 'all'
-          ? await window.electronAPI.getMaintenanceLogs(100)
-          : await window.electronAPI.getMaintenanceLogsByEquipment(selectedEquipmentId, 100);
-        setLogs(logsData);
+      if (activeTab === 'activities') {
+        const activitiesData = selectedDealId === 'all'
+          ? await window.electronAPI.getDealActivities(undefined, 100)
+          : await window.electronAPI.getDealActivities(selectedDealId, 100);
+        setActivities(activitiesData);
       } else {
-        const analyticsData = selectedEquipmentId === 'all'
-          ? await window.electronAPI.getEquipmentAnalytics()
-          : await window.electronAPI.getEquipmentAnalytics(selectedEquipmentId);
+        const analyticsData = await window.electronAPI.getPipelineAnalytics();
         setAnalytics(analyticsData);
       }
     } catch (error) {
@@ -79,32 +151,96 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
     });
   };
 
-  const getEquipmentName = (equipmentId: string) => {
-    const eq = equipment.find(e => e.id === equipmentId);
-    return eq ? `${eq.make} ${eq.model}` : `Equipment #${equipmentId}`;
+  const formatDateTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   };
 
-  const getHealthClass = (score: number | undefined) => {
-    if (!score) return styles.good;
-    if (score >= 80) return styles.good;
-    if (score >= 50) return styles.warning;
-    return styles.critical;
-  };
-
-  // Calculate health score from analytics data
-  const getHealthScore = (item: EquipmentAnalytics): number => {
-    if (item.availability !== null) {
-      return Math.round(item.availability);
+  const handleImportCSV = async () => {
+    setIsImporting(true);
+    try {
+      const result = await window.electronAPI.importDealsFromCSV();
+      if (result.imported > 0) {
+        showToast('success', `Successfully imported ${result.imported} deal${result.imported > 1 ? 's' : ''}`);
+        loadDeals();
+        loadData();
+      } else if (result.errors.length > 0) {
+        showToast('error', result.errors[0]);
+      }
+      // Log any errors to console for debugging
+      if (result.errors.length > 0) {
+        console.warn('CSV Import errors:', result.errors);
+      }
+    } catch (error) {
+      showToast('error', 'Failed to import CSV file');
+    } finally {
+      setIsImporting(false);
     }
-    // Default score based on failure count
-    return Math.max(0, 100 - item.totalFailures * 10);
   };
 
-  const formatHours = (hours: number | null) => {
-    if (hours === null) return 'N/A';
-    if (hours < 1) return `${Math.round(hours * 60)}m`;
-    if (hours < 24) return `${hours.toFixed(1)}h`;
-    return `${Math.round(hours / 24)}d`;
+  const handleExportCSV = async () => {
+    try {
+      const result = await window.electronAPI.exportDealsToCSV();
+      if (result.exported > 0 && result.filePath) {
+        showToast('success', `Exported ${result.exported} deal${result.exported > 1 ? 's' : ''} to CSV`);
+      } else if (result.exported === 0) {
+        showToast('error', 'No deals to export');
+      }
+    } catch (error) {
+      showToast('error', 'Failed to export deals to CSV');
+    }
+  };
+
+  const handleExportActivitiesMarkdown = async () => {
+    if (selectedDealId === 'all') {
+      showToast('error', 'Please select a specific deal to export');
+      return;
+    }
+
+    try {
+      const markdown = await window.electronAPI.exportActivitiesMarkdown(selectedDealId);
+      
+      // Copy to clipboard and offer save
+      await navigator.clipboard.writeText(markdown);
+      showToast('success', 'Markdown copied to clipboard!');
+      
+      // Also log to console for easy access
+      console.log('Exported Markdown:\n', markdown);
+    } catch (error) {
+      showToast('error', 'Failed to export activities');
+    }
+  };
+
+  const getDealName = (dealId: string) => {
+    const deal = deals.find(d => d.id === dealId);
+    return deal ? deal.borrowerName : `Deal #${dealId}`;
+  };
+
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '$0';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const getStageColor = (stage: string): string => {
+    const colors: Record<string, string> = {
+      lead: '#6b7280',
+      application: '#3b82f6',
+      underwriting: '#f59e0b',
+      approved: '#10b981',
+      funded: '#8b5cf6',
+      closed: '#6b7280',
+      declined: '#ef4444',
+    };
+    return colors[stage] || '#6b7280';
   };
 
   return (
@@ -124,8 +260,8 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
       <div className={styles.header}>
         <div className={styles.tabs}>
           <button 
-            className={`${styles.tab} ${activeTab === 'logs' ? styles.active : ''}`}
-            onClick={() => setActiveTab('logs')}
+            className={`${styles.tab} ${activeTab === 'activities' ? styles.active : ''}`}
+            onClick={() => setActiveTab('activities')}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -134,18 +270,18 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
               <line x1="16" y1="17" x2="8" y2="17" />
               <polyline points="10 9 9 9 8 9" />
             </svg>
-            Logs
+            Activities
           </button>
           <button 
-            className={`${styles.tab} ${activeTab === 'analytics' ? styles.active : ''}`}
-            onClick={() => setActiveTab('analytics')}
+            className={`${styles.tab} ${activeTab === 'pipeline' ? styles.active : ''}`}
+            onClick={() => setActiveTab('pipeline')}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="20" x2="18" y2="10" />
               <line x1="12" y1="20" x2="12" y2="4" />
               <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
-            Analytics
+            Pipeline
           </button>
         </div>
 
@@ -179,64 +315,126 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
       {/* Content */}
       {isOpen && (
         <div className={styles.content}>
-          {activeTab === 'logs' ? (
+          {activeTab === 'activities' ? (
             <div className={styles.logsView}>
               <div className={styles.logsToolbar}>
-                <select 
-                  className={styles.equipmentSelect}
-                  value={selectedEquipmentId}
-                  onChange={(e) => setSelectedEquipmentId(e.target.value === 'all' ? 'all' : e.target.value)}
-                >
-                  <option value="all">All Equipment</option>
-                  {equipment.map(eq => (
-                    <option key={eq.id} value={eq.id}>
-                      {eq.make} {eq.model} {eq.serialNumber ? `(${eq.serialNumber})` : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className={styles.dealSelector}>
+                  <input
+                    type="text"
+                    className={styles.dealSearchInput}
+                    placeholder="Search deals..."
+                    value={dealSearchQuery}
+                    onChange={(e) => setDealSearchQuery(e.target.value)}
+                  />
+                  <select 
+                    className={styles.equipmentSelect}
+                    value={selectedDealId}
+                    onChange={(e) => setSelectedDealId(e.target.value === 'all' ? 'all' : e.target.value)}
+                  >
+                    <option value="all">All Deals ({deals.length})</option>
+                    {filteredDeals.map(deal => (
+                      <option key={deal.id} value={deal.id}>
+                        {deal.isPinned ? '📌 ' : ''}{deal.borrowerName} - {formatCurrency(deal.loanAmount)}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedDealId !== 'all' && (
+                    <button
+                      className={styles.pinButton}
+                      onClick={(e) => handleTogglePin(selectedDealId, e)}
+                      title={deals.find(d => d.id === selectedDealId)?.isPinned ? 'Unpin deal' : 'Pin deal'}
+                    >
+                      {deals.find(d => d.id === selectedDealId)?.isPinned ? '📌' : '📍'}
+                    </button>
+                  )}
+                  {selectedDealId !== 'all' && (
+                    <select
+                      className={styles.stageSelect}
+                      value={deals.find(d => d.id === selectedDealId)?.stage || ''}
+                      onChange={(e) => handleQuickStageChange(selectedDealId, e.target.value)}
+                      title="Quick stage change"
+                    >
+                      {DEAL_STAGES.map(stage => (
+                        <option key={stage} value={stage}>{stage}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
                 <button 
                   className={styles.addButton}
-                  onClick={() => setLogModalOpen(true)}
+                  onClick={() => setActivityModalOpen(true)}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                  Add Log Entry
+                  Add Activity
                 </button>
+                {selectedDealId !== 'all' && (
+                  <button 
+                    className={styles.exportButton}
+                    onClick={handleExportActivitiesMarkdown}
+                    title="Export activities with citations as Markdown"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Export MD
+                  </button>
+                )}
+                {selectedDealId !== 'all' && (
+                  <button 
+                    className={styles.exportButton}
+                    onClick={() => exportDealToPdf(selectedDealId)}
+                    title="Export deal report as PDF"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    Export PDF
+                  </button>
+                )}
               </div>
 
               <div className={styles.logsList}>
                 {isLoading ? (
                   <div className={styles.emptyState}>
-                    <p>Loading logs...</p>
+                    <p>Loading activities...</p>
                   </div>
-                ) : logs.length === 0 ? (
+                ) : activities.length === 0 ? (
                   <div className={styles.emptyState}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
-                    <p>No maintenance logs yet</p>
-                    <p>Click "Add Log Entry" to record maintenance activities</p>
+                    <p>No activities yet</p>
+                    <p>Click "Add Activity" to log deal activities</p>
                   </div>
                 ) : (
-                  logs.map(log => (
+                  activities.map(activity => (
                     <div 
-                      key={log.id} 
+                      key={activity.id} 
                       className={styles.logEntry}
                       onClick={() => {
-                        setEditingLog(log);
-                        setLogModalOpen(true);
+                        setEditingActivity(activity);
+                        setActivityModalOpen(true);
                       }}
                       style={{ cursor: 'pointer' }}
                       title="Click to edit"
                     >
-                      <span className={styles.logDate}>{formatDate(log.startedAt)}</span>
-                      <span className={`${styles.logType} ${styles[log.type]}`}>{log.type}</span>
-                      <span className={styles.logDescription}>{log.notes || 'No notes'}</span>
-                      <span className={styles.logPerformedBy}>{log.technician || 'Unknown'}</span>
-                      <span className={styles.logEquipment}>{getEquipmentName(log.equipmentId)}</span>
+                      <span className={styles.logDate}>{formatDateTime(activity.performedAt)}</span>
+                      <span className={`${styles.logType} ${styles[activity.type]}`}>
+                        {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
+                      </span>
+                      <span className={styles.logDescription}>{activity.description || 'No description'}</span>
+                      <span className={styles.logPerformedBy}>{activity.performedBy || '-'}</span>
+                      <span className={styles.logEquipment}>{getDealName(activity.dealId)}</span>
                     </div>
                   ))
                 )}
@@ -245,84 +443,171 @@ export function BottomPanel({ height, onHeightChange, isOpen, onToggle }: Bottom
           ) : (
             <div className={styles.analyticsView}>
               <div className={styles.analyticsToolbar}>
-                <select 
-                  className={styles.equipmentSelect}
-                  value={selectedEquipmentId}
-                  onChange={(e) => setSelectedEquipmentId(e.target.value === 'all' ? 'all' : e.target.value)}
+                <button 
+                  className={styles.addButton}
+                  onClick={handleImportCSV}
+                  disabled={isImporting}
                 >
-                  <option value="all">All Equipment</option>
-                  {equipment.map(eq => (
-                    <option key={eq.id} value={eq.id}>
-                      {eq.make} {eq.model}
-                    </option>
-                  ))}
-                </select>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  {isImporting ? 'Importing...' : 'Import CSV'}
+                </button>
+                <button 
+                  className={styles.addButton}
+                  onClick={handleExportCSV}
+                  disabled={!analytics || analytics.totalDeals === 0}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Export CSV
+                </button>
+                <button
+                  className={styles.addButton}
+                  onClick={exportPipelineToPdf}
+                  disabled={!analytics || analytics.totalDeals === 0}
+                  title="Export pipeline report as PDF"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                  Export PDF
+                </button>
               </div>
-
               <div className={styles.analyticsGrid}>
                 {isLoading ? (
                   <div className={styles.emptyState}>
-                    <p>Loading analytics...</p>
+                    <p>Loading pipeline...</p>
                   </div>
-                ) : analytics.length === 0 ? (
+                ) : !analytics ? (
                   <div className={styles.emptyState}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <line x1="18" y1="20" x2="18" y2="10" />
                       <line x1="12" y1="20" x2="12" y2="4" />
                       <line x1="6" y1="20" x2="6" y2="14" />
                     </svg>
-                    <p>No analytics data available</p>
-                    <p>Add equipment and maintenance logs to see metrics</p>
+                    <p>No pipeline data available</p>
+                    <p>Add deals to see pipeline metrics</p>
                   </div>
                 ) : (
-                  analytics.map(item => {
-                    const healthScore = getHealthScore(item);
-                    const equipmentName = getEquipmentName(item.equipmentId);
-                    return (
-                    <div key={item.equipmentId} className={styles.metricCard}>
+                  <>
+                    {/* Summary Cards Row */}
+                    <div className={styles.summaryCardsRow}>
+                      <div className={styles.summaryCard}>
+                        <div className={styles.summaryIcon}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                          </svg>
+                        </div>
+                        <div className={styles.summaryContent}>
+                          <span className={styles.summaryValue}>{analytics.totalDeals}</span>
+                          <span className={styles.summaryLabel}>Total Deals</span>
+                        </div>
+                      </div>
+                      
+                      <div className={styles.summaryCard}>
+                        <div className={styles.summaryIcon} style={{ color: '#10b981' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="12" y1="1" x2="12" y2="23" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                          </svg>
+                        </div>
+                        <div className={styles.summaryContent}>
+                          <span className={styles.summaryValue}>{formatCurrency(analytics.totalPipelineValue)}</span>
+                          <span className={styles.summaryLabel}>Pipeline Value</span>
+                        </div>
+                      </div>
+                      
+                      <div className={styles.summaryCard}>
+                        <div className={styles.summaryIcon} style={{ color: '#3b82f6' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                          </svg>
+                        </div>
+                        <div className={styles.summaryContent}>
+                          <span className={styles.summaryValue}>{analytics.recentActivityCount || 0}</span>
+                          <span className={styles.summaryLabel}>Activities (7d)</span>
+                        </div>
+                      </div>
+                      
+                      <div className={styles.summaryCard}>
+                        <div className={styles.summaryIcon} style={{ color: '#8b5cf6' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                          </svg>
+                        </div>
+                        <div className={styles.summaryContent}>
+                          <span className={styles.summaryValue}>{analytics.dealsAddedThisMonth || 0}</span>
+                          <span className={styles.summaryLabel}>New This Month</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stage Distribution Bar Chart */}
+                    {analytics.byStage && Object.keys(analytics.byStage).length > 0 && (
+                      <div className={styles.metricCard}>
+                        <div className={styles.metricHeader}>
+                          <span className={styles.metricName}>Stage Distribution</span>
+                        </div>
+                        <div className={styles.stageBarChart}>
+                          {Object.entries(analytics.byStage)
+                            .filter(([_, data]) => (data as any).count > 0)
+                            .map(([stage, data]) => {
+                              const stageData = data as { count: number; totalValue: number };
+                              const maxCount = Math.max(...Object.values(analytics.byStage).map((d: any) => d.count));
+                              const percentage = maxCount > 0 ? (stageData.count / maxCount) * 100 : 0;
+                              return (
+                                <div key={stage} className={styles.stageBarItem}>
+                                  <div className={styles.stageBarLabel}>
+                                    <span className={styles.stageName}>{stage}</span>
+                                    <span className={styles.stageCount}>{stageData.count}</span>
+                                  </div>
+                                  <div className={styles.stageBarTrack}>
+                                    <div 
+                                      className={styles.stageBarFill}
+                                      style={{ 
+                                        width: `${percentage}%`,
+                                        backgroundColor: getStageColor(stage)
+                                      }}
+                                    />
+                                  </div>
+                                  <span className={styles.stageBarValue}>{formatCurrency(stageData.totalValue)}</span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Original Stage Breakdown Cards */}
+                    <div className={styles.metricCard}>
                       <div className={styles.metricHeader}>
-                        <span className={styles.metricName}>{equipmentName}</span>
-                        <span className={`${styles.healthBadge} ${getHealthClass(healthScore)}`}>
-                          {healthScore}% Health
-                        </span>
+                        <span className={styles.metricName}>Average Deal Size</span>
                       </div>
                       <div className={styles.metricValues}>
                         <div className={styles.metricItem}>
-                          <span className={styles.metricLabel}>MTBF</span>
-                          <span className={styles.metricValue}>
-                            {formatHours(item.mtbf)}
-                            {item.mtbf && <span className={styles.metricUnit}>hrs</span>}
-                          </span>
-                        </div>
-                        <div className={styles.metricItem}>
-                          <span className={styles.metricLabel}>MTTR</span>
-                          <span className={styles.metricValue}>
-                            {formatHours(item.mttr)}
-                            {item.mttr && <span className={styles.metricUnit}>hrs</span>}
-                          </span>
-                        </div>
-                        <div className={styles.metricItem}>
-                          <span className={styles.metricLabel}>Availability</span>
                           <span className={`${styles.metricValue} ${styles.accent}`}>
-                            {item.availability?.toFixed(1) ?? 'N/A'}
-                            {item.availability !== null && <span className={styles.metricUnit}>%</span>}
+                            {formatCurrency(analytics.averageDealSize)}
                           </span>
-                        </div>
-                        <div className={styles.metricItem}>
-                          <span className={styles.metricLabel}>Failures</span>
-                          <span className={styles.metricValue}>{item.totalFailures}</span>
                         </div>
                       </div>
-                      {item.predictedNextMaintenance && (
-                        <div className={styles.prediction}>
-                          <span className={styles.predictionLabel}>Next Maintenance: </span>
-                          <span className={styles.predictionValue}>
-                            {formatDate(item.predictedNextMaintenance)}
-                          </span>
-                        </div>
-                      )}
                     </div>
-                  );})
+                  </>
                 )}
               </div>
             </div>

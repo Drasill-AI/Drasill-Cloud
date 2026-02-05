@@ -1,0 +1,394 @@
+/* Deal Modal Styles */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  background: var(--bg-secondary, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color, #3c3c3c);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.generateDocButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 4px;
+  color: var(--text-secondary, #888888);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.generateDocButton:hover {
+  background: #28a745;
+  border-color: #28a745;
+  color: white;
+}
+
+.generateDocButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cloneButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 4px;
+  color: var(--text-secondary, #888888);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cloneButton:hover {
+  background: var(--accent, #007acc);
+  border-color: var(--accent, #007acc);
+  color: white;
+}
+
+.cloneButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #cccccc);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #888888);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.closeButton:hover {
+  background: var(--bg-hover, #2a2a2a);
+  color: var(--text-primary, #cccccc);
+}
+
+.content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #cccccc);
+}
+
+.title svg {
+  width: 48px;
+  height: 48px;
+  color: var(--text-primary, #cccccc);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.row,
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.field,
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #888888);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.input,
+.select,
+.textarea {
+  background: var(--bg-primary, #252526);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary, #cccccc);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: var(--accent-color, #007acc);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-secondary, #888888);
+  opacity: 0.7;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.select option {
+  background: var(--bg-primary, #252526);
+  color: var(--text-primary, #cccccc);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 20px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-color, #3c3c3c);
+}
+
+.actions,
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 20px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-color, #3c3c3c);
+}
+
+.cancelButton {
+  background: transparent;
+  border: 1px solid var(--border-color, #3c3c3c);
+  color: var(--text-secondary, #888888);
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.cancelButton:hover {
+  background: var(--bg-hover, #2a2a2a);
+  color: var(--text-primary, #cccccc);
+}
+
+.submitButton {
+  background: var(--accent-color, #007acc);
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.15s;
+}
+
+.submitButton:hover {
+  background: var(--accent-color-hover, #0098ff);
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Deal info section (edit mode) */
+.dealInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 20px;
+  background: var(--bg-tertiary, #252526);
+  border-bottom: 1px solid var(--border-color, #3c3c3c);
+  font-size: 12px;
+}
+
+.dealNumber {
+  font-weight: 600;
+  color: var(--accent-color, #007acc);
+}
+
+.dealCreated {
+  color: var(--text-secondary, #888888);
+}
+
+/* Footer with delete section */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color, #3c3c3c);
+  gap: 12px;
+}
+
+.deleteSection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deleteButton {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.deleteButton:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+}
+
+.deleteConfirmText {
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.deleteConfirmButton {
+  background: #ef4444;
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 0.15s;
+}
+
+.deleteConfirmButton:hover {
+  background: #dc2626;
+}
+
+.deleteConfirmButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelDeleteButton {
+  background: transparent;
+  border: 1px solid var(--border-color, #3c3c3c);
+  color: var(--text-secondary, #888888);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.cancelDeleteButton:hover {
+  background: var(--bg-hover, #2a2a2a);
+  color: var(--text-primary, #cccccc);
+}
+
+.actionButtons {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Stage badge colors */
+.stageBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.stageLead { background: #3b82f6; color: white; }
+.stageApplication { background: #8b5cf6; color: white; }
+.stageUnderwriting { background: #f59e0b; color: black; }
+.stageApproved { background: #10b981; color: white; }
+.stageFunded { background: #059669; color: white; }
+.stageClosed { background: #6b7280; color: white; }
+.stageDeclined { background: #ef4444; color: white; }

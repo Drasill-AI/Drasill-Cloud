@@ -11,12 +11,16 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 interface PdfViewerProps {
   fileName: string;
   path: string;
+  source?: 'local' | 'onedrive';
+  oneDriveId?: string;
+  initialPage?: number;
 }
 
-export function PdfViewer({ fileName, path }: PdfViewerProps) {
+export function PdfViewer({ fileName, path, source, oneDriveId, initialPage }: PdfViewerProps) {
   const [pdfData, setPdfData] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState<number>(initialPage || 1);
+  const [pageInputValue, setPageInputValue] = useState<string>('1');
   const [scale, setScale] = useState<number>(1.0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +34,20 @@ export function PdfViewer({ fileName, path }: PdfViewerProps) {
       setError(null);
       
       try {
-        const result = await window.electronAPI.readFileBinary(path);
+        let base64Data: string;
+        
+        if (source === 'onedrive' && oneDriveId) {
+          // Load from OneDrive
+          const result = await window.electronAPI.readOneDriveFile(oneDriveId);
+          base64Data = result.content;
+        } else {
+          // Load from local filesystem
+          const result = await window.electronAPI.readFileBinary(path);
+          base64Data = result.data;
+        }
+        
         if (!cancelled) {
-          setPdfData(`data:application/pdf;base64,${result.data}`);
+          setPdfData(`data:application/pdf;base64,${base64Data}`);
         }
       } catch (err) {
         if (!cancelled) {
@@ -50,12 +65,31 @@ export function PdfViewer({ fileName, path }: PdfViewerProps) {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, source, oneDriveId]);
 
-  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-    setCurrentPage(1);
-  }, []);
+  // React to initialPage changes (e.g., when clicking a citation while PDF is already open)
+  useEffect(() => {
+    if (initialPage && initialPage > 0 && numPages > 0 && initialPage <= numPages) {
+      console.log('[PdfViewer] Navigating to page:', initialPage);
+      setCurrentPage(initialPage);
+    }
+  }, [initialPage, numPages]);
+
+  // Sync page input value with current page
+  useEffect(() => {
+    setPageInputValue(String(currentPage));
+  }, [currentPage]);
+
+  const onDocumentLoadSuccess = useCallback(({ numPages: pages }: { numPages: number }) => {
+    setNumPages(pages);
+    // Navigate to initial page if specified
+    if (initialPage && initialPage > 0 && initialPage <= pages) {
+      console.log('[PdfViewer] Document loaded, navigating to initial page:', initialPage);
+      setCurrentPage(initialPage);
+    } else {
+      setCurrentPage(1);
+    }
+  }, [initialPage]);
 
   const onDocumentLoadError = useCallback((error: Error) => {
     setError(`Failed to load PDF: ${error.message}`);
@@ -63,6 +97,31 @@ export function PdfViewer({ fileName, path }: PdfViewerProps) {
 
   const goToPrevPage = () => setCurrentPage((prev) => Math.max(1, prev - 1));
   const goToNextPage = () => setCurrentPage((prev) => Math.min(numPages, prev + 1));
+  
+  const goToPage = (page: number) => {
+    const validPage = Math.max(1, Math.min(numPages, page));
+    setCurrentPage(validPage);
+  };
+
+  const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPageInputValue(e.target.value);
+  };
+
+  const handlePageInputBlur = () => {
+    const page = parseInt(pageInputValue, 10);
+    if (!isNaN(page)) {
+      goToPage(page);
+    } else {
+      setPageInputValue(String(currentPage));
+    }
+  };
+
+  const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
   const zoomIn = () => setScale((prev) => Math.min(3, prev + 0.25));
   const zoomOut = () => setScale((prev) => Math.max(0.5, prev - 0.25));
   const resetZoom = () => setScale(1.0);
@@ -108,9 +167,17 @@ export function PdfViewer({ fileName, path }: PdfViewerProps) {
           >
             ◀
           </button>
-          <span className={styles.pageInfo}>
-            {currentPage} / {numPages}
-          </span>
+          <input
+            type="text"
+            className={styles.pageInput}
+            value={pageInputValue}
+            onChange={handlePageInputChange}
+            onBlur={handlePageInputBlur}
+            onKeyDown={handlePageInputKeyDown}
+            title="Enter page number"
+          />
+          <span className={styles.pageSeparator}>/</span>
+          <span className={styles.totalPages}>{numPages}</span>
           <button 
             className={styles.toolButton} 
             onClick={goToNextPage} 

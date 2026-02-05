@@ -1,8 +1,8 @@
 {
   "name": "@drasill/desktop",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
-  "description": "Drasill Cloud Desktop App with AI-Powered Schematic Visualizer",
+  "description": "Drasill Finance - Deal Management Desktop App",
   "author": "Drasill AI LLC",
   "main": "dist/main/index.js",
   "scripts": {
@@ -10,18 +10,19 @@
     "dev:vite": "vite",
     "dev:electron": "wait-on tcp:5173 && npm run build:main && npm run build:preload && electron .",
     "build": "npm run build:main && npm run build:preload && npm run build:renderer",
-    "build:main": "tsc -p tsconfig.main.json",
-    "build:preload": "tsc -p tsconfig.preload.json",
+    "build:main": "npx tsc -p tsconfig.main.json",
+    "build:preload": "npx tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
     "postinstall": "npx @electron/rebuild",
     "package": "npm run build && electron-builder",
     "package:win": "npm run build && electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
-    "typecheck": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.preload.json && tsc --noEmit -p tsconfig.renderer.json"
+    "typecheck": "npx tsc --noEmit -p tsconfig.main.json && npx tsc --noEmit -p tsconfig.preload.json && npx tsc --noEmit -p tsconfig.renderer.json"
   },
   "dependencies": {
     "@drasill/shared": "*",
     "@electron/rebuild": "^4.0.2",
+    "@supabase/supabase-js": "^2.91.0",
     "better-sqlite3": "^12.5.0",
     "electron-store": "^8.2.0",
     "keytar": "^7.9.0",
@@ -50,8 +51,8 @@
     "zustand": "^4.5.0"
   },
   "build": {
-    "appId": "com.drasill.cloud",
-    "productName": "Drasill Cloud",
+    "appId": "com.drasill.finance",
+    "productName": "Drasill Finance",
     "icon": "assets/icon.ico",
     "directories": {
       "output": "release"
@@ -86,12 +87,12 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns",
-      "category": "public.app-category.developer-tools"
+      "icon": "assets/icon.png",
+      "category": "public.app-category.finance"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.ico"
     }
   }
 }

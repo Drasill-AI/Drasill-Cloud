@@ -12,7 +12,6 @@
   letter-spacing: 0.10em;
   color: var(--text-secondary);
   text-transform: uppercase;
-  opacity: 0.70;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
@@ -21,6 +20,7 @@
 
 .title {
   user-select: none;
+  opacity: 0.70;
 }
 
 .headerActions {
@@ -29,12 +29,66 @@
   gap: 8px;
 }
 
+.historyButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  opacity: 0.5;
+  transition: all 0.15s ease;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.historyButton:hover {
+  opacity: 1;
+  background: var(--bg-hover);
+}
+
+.historyButton.active {
+  opacity: 1;
+  background: var(--accent-color);
+  color: white;
+}
+
+.historyPanel {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary);
+  z-index: 100;
+  border-top: 1px solid var(--border-color);
+}
+
 .ragBadge {
   font-size: 10px;
-  opacity: 0.6;
-  padding: 2px 6px;
+  opacity: 0.7;
+  padding: 3px 8px;
   background: var(--bg-hover);
-  border-radius: 3px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ragBadge:hover {
+  opacity: 1;
+  background: var(--accent);
+  color: white;
+}
+
+.ragBadge:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .settingsButton,
@@ -294,71 +348,157 @@
 .messages {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .message {
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 14px 16px;
 }
 
 .message.user {
   background: linear-gradient(135deg, var(--accent) 0%, #6BA3FF 100%);
   color: white;
-  margin-left: 20px;
+  margin-left: 24px;
   box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .message.assistant {
   background-color: var(--bg-tertiary);
   color: var(--text-primary);
-  margin-right: 20px;
+  margin-right: 12px;
   border: 1px solid var(--border-subtle);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .messageHeader {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  margin-bottom: 8px;
-  opacity: 0.7;
+  margin-bottom: 10px;
+  opacity: 0.8;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .messageContent {
   font-size: 13px;
   line-height: 1.6;
-  white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Markdown content wrapper */
+.markdownContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.markdownContent p,
+.markdownP {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.markdownH1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 8px 0 4px 0;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 4px;
+}
+
+.markdownH2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 6px 0 2px 0;
+  color: var(--text-primary);
+}
+
+.markdownH3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 4px 0 2px 0;
+  color: var(--text-secondary);
+}
+
+.markdownList {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.markdownList li {
+  margin: 3px 0;
+  line-height: 1.5;
+}
+
+.markdownHr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 8px 0;
+}
+
+.codeBlock {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 4px 0;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.codeBlock code {
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.inlineCode {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.9em;
+  color: var(--accent-light, #8CB4FF);
 }
 
 /* Citation links in message content */
 .citationLink {
-  display: inline;
-  background: rgba(var(--accent-rgb), 0.15);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--accent-rgb), 0.2);
   color: var(--accent);
   border: none;
-  padding: 0 4px;
-  border-radius: 3px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: inherit;
+  vertical-align: baseline;
+  margin: 0 2px;
 }
 
 .citationLink:hover {
-  background: rgba(var(--accent-rgb), 0.3);
-  text-decoration: underline;
+  background: rgba(var(--accent-rgb), 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(var(--accent-rgb), 0.2);
 }
 
 /* Sources list below messages */
 .sourcesList {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-  padding-top: 8px;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid var(--border-subtle);
   align-items: center;
 }
@@ -368,24 +508,63 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-weight: 600;
   margin-right: 4px;
 }
 
 .sourceButton {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border-color);
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .sourceButton:hover {
-  background: rgba(var(--accent-rgb), 0.1);
+  background: rgba(var(--accent-rgb), 0.15);
   border-color: var(--accent);
   color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* Sources from other deals - styled with dashed border */
+.otherDealSource {
+  opacity: 0.7;
+  border-style: dashed;
+  background: rgba(255, 200, 100, 0.05);
+}
+
+.otherDealSource:hover {
+  background: rgba(255, 200, 100, 0.15);
+  border-color: #f0ad4e;
+  color: #f0ad4e;
+}
+
+.otherDealIcon {
+  font-size: 10px;
+}
+
+/* Relevance score badge */
+.relevanceScore {
+  font-size: 9px;
+  opacity: 0.7;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 2px;
+  font-weight: 400;
+}
+
+.cloudIcon {
+  margin-right: 4px;
+  font-size: 10px;
 }
 
 .typing {
@@ -410,7 +589,8 @@
 }
 
 .clearButton,
-.cancelButton {
+.cancelButton,
+.newChatButton {
   padding: 6px 14px;
   font-size: 12px;
   border-radius: 5px;
@@ -422,6 +602,17 @@
   background-color: var(--bg-tertiary);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
+}
+
+.newChatButton {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+}
+
+.newChatButton:hover {
+  background-color: var(--accent);
+  filter: brightness(1.1);
 }
 
 .clearButton:hover {
@@ -636,3 +827,171 @@
   display: inline-block;
   margin-top: 10px;
 }
+
+/* Source Context Menu */
+.sourceContextMenu {
+  position: fixed;
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  z-index: 99999;
+  min-width: 200px;
+  overflow: visible;
+  animation: contextMenuFadeIn 0.12s ease-out;
+  pointer-events: auto;
+}
+
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.contextMenuItem:hover {
+  background: var(--bg-hover);
+}
+
+.contextMenuItem:first-child {
+  border-radius: 7px 7px 0 0;
+}
+
+.contextMenuItem:last-child {
+  border-radius: 0 0 7px 7px;
+}
+
+.contextMenuItem:not(:last-child) {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Profile Switcher */
+.profileSwitcher {
+  position: relative;
+}
+
+.profileButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text-secondary, #888);
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+
+.profileButton:hover {
+  background: var(--bg-hover, #2a2a2a);
+  color: var(--text-primary, #ccc);
+}
+
+.profileButton.active {
+  border-color: var(--accent, #007acc);
+  color: var(--accent, #007acc);
+}
+
+.profileButtonDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.profileDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-secondary, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 6px;
+  min-width: 200px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  padding: 4px;
+  opacity: 1;
+}
+
+.profileDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.profileDropdownItem:hover {
+  background: var(--bg-hover, #2a2a2a);
+}
+
+.profileDropdownItem.selected {
+  background: rgba(0, 122, 204, 0.15);
+}
+
+.profileDropdownName {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary, #e0e0e0);
+  font-weight: 500;
+}
+
+.profileDropdownCheck {
+  width: 16px;
+  height: 16px;
+  color: #22c55e;
+}
+
+.profileDropdownDivider {
+  height: 1px;
+  background: var(--border-color, #3c3c3c);
+  margin: 4px 0;
+}
+
+.profileDropdownAction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary, #e0e0e0);
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.profileDropdownAction:hover {
+  background: var(--bg-hover, #2a2a2a);
+  color: var(--text-primary, #fff);
+}
+
+.profileDropdownAction svg {
+  width: 14px;
+  height: 14px;
+}
+

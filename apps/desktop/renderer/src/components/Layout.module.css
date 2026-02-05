@@ -67,6 +67,44 @@
   background-color: var(--bg-primary);
 }
 
+.splitContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.splitPane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 200px;
+}
+
+.splitResizeHandle {
+  width: 4px;
+  background-color: var(--border-color);
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+  position: relative;
+  z-index: 20;
+}
+
+.splitResizeHandle:hover {
+  background-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.splitResizeHandle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  right: -4px;
+}
+
 .editorContainer {
   flex: 1;
   overflow: hidden;

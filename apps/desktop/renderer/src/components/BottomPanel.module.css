@@ -127,11 +127,82 @@
 
 .logsToolbar {
   display: flex;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(0, 0, 0, 0.1);
   align-items: center;
+}
+
+.dealSelector {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: 1;
+  max-width: 450px;
+}
+
+.dealSearchInput {
+  width: 140px;
+  padding: 6px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.dealSearchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.dealSearchInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
+}
+
+.pinButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.pinButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+}
+
+.stageSelect {
+  padding: 6px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 130px;
+  transition: all 0.15s ease;
+}
+
+.stageSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
+}
+
+.stageSelect option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .equipmentSelect {
@@ -182,21 +253,46 @@
   height: 14px;
 }
 
+.exportButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.exportButton:hover {
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.exportButton svg {
+  width: 14px;
+  height: 14px;
+}
+
 .logsList {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 6px;
 }
 
 .logEntry {
   display: grid;
-  grid-template-columns: 100px 80px 1fr 120px auto;
-  gap: 12px;
-  padding: 10px 12px;
+  grid-template-columns: 110px 70px 1fr 100px 140px;
+  gap: 8px;
+  padding: 6px 10px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  margin-bottom: 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
   font-size: 12px;
   align-items: center;
   transition: all 0.15s ease;
@@ -222,29 +318,35 @@
   text-align: center;
 }
 
-.logType.preventive {
+/* Activity type colors */
+.logType.note {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+}
+
+.logType.call {
   background: rgba(52, 211, 153, 0.15);
   color: #34d399;
 }
 
-.logType.corrective {
-  background: rgba(251, 146, 60, 0.15);
-  color: #fb923c;
-}
-
-.logType.inspection {
+.logType.email {
   background: rgba(96, 165, 250, 0.15);
   color: #60a5fa;
 }
 
-.logType.calibration {
+.logType.document {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.logType.meeting {
   background: rgba(167, 139, 250, 0.15);
   color: #a78bfa;
 }
 
-.logType.other {
-  background: rgba(156, 163, 175, 0.15);
-  color: #9ca3af;
+.logType.stage_change {
+  background: rgba(236, 72, 153, 0.15);
+  color: #ec4899;
 }
 
 .logDescription {
@@ -257,12 +359,20 @@
 .logPerformedBy {
   color: var(--text-secondary);
   font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .logEquipment {
   color: var(--accent);
   font-size: 11px;
   font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .emptyState {
@@ -298,8 +408,8 @@
 
 .analyticsToolbar {
   display: flex;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(0, 0, 0, 0.1);
   align-items: center;
@@ -307,19 +417,22 @@
 
 .analyticsGrid {
   flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
   overflow-y: auto;
+  align-content: flex-start;
 }
 
 .metricCard {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 4px;
+  padding: 8px 12px;
   transition: all 0.2s ease;
+  min-width: 160px;
+  flex: 0 0 auto;
 }
 
 .metricCard:hover {
@@ -416,4 +529,113 @@
 .predictionValue {
   color: var(--accent);
   font-weight: 500;
+}
+
+/* Summary Cards Row */
+.summaryCardsRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.summaryCard {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+
+.summaryIcon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.summaryIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.summaryContent {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.summaryValue {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  line-height: 1.2;
+}
+
+.summaryLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Stage Bar Chart */
+.stageBarChart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stageBarItem {
+  display: grid;
+  grid-template-columns: 100px 1fr 90px;
+  align-items: center;
+  gap: 12px;
+}
+
+.stageBarLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stageBarLabel .stageName {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.stageBarLabel .stageCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.stageBarTrack {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stageBarFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.stageBarValue {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-align: right;
 }

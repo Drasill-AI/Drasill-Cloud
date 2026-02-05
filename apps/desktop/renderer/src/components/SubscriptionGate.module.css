@@ -1,0 +1,132 @@
+.container {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.card {
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 48px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.logo {
+  width: 160px;
+  height: auto;
+  margin-bottom: 24px;
+}
+
+.title {
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.subtitle {
+  color: #888;
+  font-size: 16px;
+  margin: 0 0 32px 0;
+}
+
+.features {
+  text-align: left;
+  margin-bottom: 32px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ccc;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.check {
+  color: #4ade80;
+  font-weight: bold;
+}
+
+.pricing {
+  margin-bottom: 24px;
+}
+
+.price {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.amount {
+  color: #fff;
+  font-size: 48px;
+  font-weight: 700;
+}
+
+.period {
+  color: #888;
+  font-size: 16px;
+}
+
+.trial {
+  color: #4C8DFF;
+  font-size: 14px;
+  margin: 8px 0 0 0;
+}
+
+.upgradeButton {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #4C8DFF 0%, #3a7be8 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.upgradeButton:hover {
+  box-shadow: 0 4px 20px rgba(76, 141, 255, 0.4);
+}
+
+.upgradeButton:active {
+  transform: scale(0.98);
+}
+
+.footer {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.email {
+  color: #666;
+  font-size: 13px;
+  margin: 0 0 8px 0;
+}
+
+.signOutButton {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.signOutButton:hover {
+  color: #fff;
+}

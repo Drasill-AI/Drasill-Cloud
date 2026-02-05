@@ -1,0 +1,122 @@
+.container {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #333;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e0e0e0;
+  margin: 0 0 16px 0;
+}
+
+.title svg {
+  width: 16px;
+  height: 16px;
+  color: #4C8DFF;
+}
+
+.metricsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.metric {
+  background: #252525;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.metricHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.metricIcon {
+  font-size: 14px;
+}
+
+.metricLabel {
+  font-size: 12px;
+  color: #999;
+  font-weight: 500;
+}
+
+.progressContainer {
+  height: 6px;
+  background: #333;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.metricValue {
+  font-size: 12px;
+  color: #ccc;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.metricSubtext {
+  font-size: 11px;
+  color: #666;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #333;
+}
+
+.resetInfo {
+  font-size: 11px;
+  color: #666;
+}
+
+.refreshButton {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #666;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refreshButton:hover {
+  background: #333;
+  color: #999;
+}
+
+.refreshButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.loading {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  padding: 20px;
+}
