@@ -13,7 +13,7 @@
     "build:main": "npx tsc -p tsconfig.main.json",
     "build:preload": "npx tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
-    "postinstall": "npx @electron/rebuild && npx electron-builder install-app-deps",
+    "postinstall": "npx @electron/rebuild",
     "package": "npm run build && electron-builder",
     "package:win": "npm run build && electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
@@ -87,7 +87,7 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.ico",
+      "icon": "assets/icon.png",
       "category": "public.app-category.finance"
     },
     "linux": {
